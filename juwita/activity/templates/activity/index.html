@@ -183,6 +183,7 @@
         let activeSessionStart = null;
         let countUpInterval = null;
         let lastPing = null;
+        let lastMeetingsHash = null;
 
         function updateCountUp() {
             if (activeSessionStart) {
@@ -231,6 +232,11 @@
                             countUpInterval = null;
                         }
                     }
+
+                    // Only update sessions list if data changed
+                    const meetingsHash = JSON.stringify(data.meetings.map(m => m.id));
+                    if (meetingsHash === lastMeetingsHash) return;
+                    lastMeetingsHash = meetingsHash;
 
                     const sessionsEl = document.getElementById('sessions');
                     let entries = [];
