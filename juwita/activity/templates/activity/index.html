@@ -76,6 +76,31 @@
         .spinning {
             animation: spin 0.5s ease-in-out;
         }
+
+        /* Ping pulse animation */
+        #status-box {
+            position: relative;
+            overflow: visible;
+        }
+        @keyframes pulse-ring {
+            0% {
+                transform: scale(1);
+                opacity: 0.8;
+            }
+            100% {
+                transform: scale(1.15);
+                opacity: 0;
+            }
+        }
+        .pulse::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 1rem;
+            background: inherit;
+            animation: pulse-ring 0.4s ease-out forwards;
+            z-index: -1;
+        }
     </style>
 
     <script>
@@ -131,12 +156,21 @@
         // Active session tracking
         let activeSessionStart = null;
         let countUpInterval = null;
+        let lastPing = null;
 
         function updateCountUp() {
             if (activeSessionStart) {
                 const elapsed = (Date.now() - activeSessionStart) / 1000;
                 document.getElementById('status-detail').textContent = 'Started: ' + formatCountUp(elapsed);
             }
+        }
+
+        function triggerPulse() {
+            const box = document.getElementById('status-box');
+            box.classList.remove('pulse');
+            void box.offsetWidth; // Force reflow to restart animation
+            box.classList.add('pulse');
+            setTimeout(() => box.classList.remove('pulse'), 400);
         }
 
         // Load meetings
@@ -156,6 +190,11 @@
                         if (!countUpInterval) {
                             countUpInterval = setInterval(updateCountUp, 1000);
                         }
+                        // Check for new ping
+                        if (lastPing && data.active_meeting.last_ping !== lastPing) {
+                            triggerPulse();
+                        }
+                        lastPing = data.active_meeting.last_ping;
                     } else {
                         box.className = 'rounded-2xl p-8 mb-8 text-center transition-all duration-500 bg-red-500';
                         text.textContent = 'NOT IN SESSION';
@@ -213,7 +252,7 @@
         });
 
         loadMeetings();
-        setInterval(loadMeetings, 3000);
+        setInterval(loadMeetings, 500);
     </script>
 </body>
 </html>

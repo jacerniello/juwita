@@ -65,7 +65,8 @@ def meetings(request):
         "active_meeting": {
             "id": active.id,
             "start": active.start_time.isoformat(),
-            "duration_minutes": active.duration.total_seconds() / 60
+            "duration_minutes": active.duration.total_seconds() / 60,
+            "last_ping": active.last_ping.isoformat()
         } if active and active.is_active else None,
         "meetings": [
             {
