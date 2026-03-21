@@ -7,31 +7,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     {% tailwind_css %}
 </head>
-<body class="bg-neutral-950 min-h-screen text-neutral-100 font-light">
+<body class="bg-white min-h-screen text-neutral-900 font-light">
     <div class="max-w-md mx-auto px-6 py-16">
         <!-- Header -->
-        <h1 class="text-2xl tracking-tight mb-12">juwita</h1>
+        <h1 class="text-2xl tracking-tight mb-12 text-neutral-800">juwita</h1>
 
         <!-- Status -->
         <div id="status" class="mb-16">
             <div class="flex items-center gap-3 mb-1">
-                <div id="status-dot" class="w-2 h-2 rounded-full bg-neutral-600"></div>
-                <span id="status-text" class="text-sm text-neutral-400">loading</span>
+                <div id="status-dot" class="w-2 h-2 rounded-full bg-neutral-300"></div>
+                <span id="status-text" class="text-sm text-neutral-500">loading</span>
             </div>
-            <p id="status-detail" class="text-xs text-neutral-600 ml-5"></p>
+            <p id="status-detail" class="text-xs text-neutral-400 ml-5"></p>
         </div>
 
         <!-- Meetings -->
         <div>
-            <p class="text-xs text-neutral-500 uppercase tracking-widest mb-4">History</p>
+            <p class="text-xs text-neutral-400 uppercase tracking-widest mb-4">History</p>
             <div id="meetings" class="space-y-4">
             </div>
         </div>
 
         <!-- Controls (subtle) -->
         <div class="fixed bottom-6 right-6 flex gap-2">
-            <button id="pingButton" class="w-8 h-8 rounded-full bg-neutral-900 border border-neutral-800 text-neutral-500 hover:text-neutral-300 hover:border-neutral-700 transition-all text-xs">+</button>
-            <button id="refreshButton" class="w-8 h-8 rounded-full bg-neutral-900 border border-neutral-800 text-neutral-500 hover:text-neutral-300 hover:border-neutral-700 transition-all text-xs">↻</button>
+            <button id="pingButton" class="w-8 h-8 rounded-full bg-neutral-100 border border-neutral-200 text-neutral-400 hover:text-neutral-600 hover:border-neutral-300 transition-all text-xs">+</button>
+            <button id="refreshButton" class="w-8 h-8 rounded-full bg-neutral-100 border border-neutral-200 text-neutral-400 hover:text-neutral-600 hover:border-neutral-300 transition-all text-xs">↻</button>
         </div>
     </div>
 
@@ -70,23 +70,23 @@
                     if (data.active_meeting) {
                         dot.className = 'w-2 h-2 rounded-full bg-green-500 animate-pulse';
                         text.textContent = 'in session';
-                        text.className = 'text-sm text-green-500';
+                        text.className = 'text-sm text-green-600';
                         detail.textContent = formatDuration(data.active_meeting.duration_minutes);
                     } else {
-                        dot.className = 'w-2 h-2 rounded-full bg-neutral-600';
+                        dot.className = 'w-2 h-2 rounded-full bg-neutral-300';
                         text.textContent = 'idle';
-                        text.className = 'text-sm text-neutral-400';
+                        text.className = 'text-sm text-neutral-500';
                         detail.textContent = '';
                     }
 
                     const meetingsEl = document.getElementById('meetings');
                     if (data.meetings.length === 0) {
-                        meetingsEl.innerHTML = '<p class="text-neutral-700 text-sm">no meetings yet</p>';
+                        meetingsEl.innerHTML = '<p class="text-neutral-400 text-sm">no meetings yet</p>';
                     } else {
                         meetingsEl.innerHTML = data.meetings.reverse().slice(0, 10).map(m =>
                             `<div class="flex justify-between items-baseline text-sm">
-                                <span class="text-neutral-500">${formatDate(m.start)} ${formatTime(m.start)}</span>
-                                <span class="text-neutral-600">${formatDuration(m.duration_minutes)}</span>
+                                <span class="text-neutral-600">${formatDate(m.start)} ${formatTime(m.start)}</span>
+                                <span class="text-neutral-400">${formatDuration(m.duration_minutes)}</span>
                             </div>`
                         ).join('');
                     }
