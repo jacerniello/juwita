@@ -23,7 +23,7 @@
                     </svg>
                 </button>
                 <button id="refreshButton" class="opacity-50 hover:opacity-100 transition-all text-xl">↻</button>
-                <button id="authButton" class="opacity-50 hover:opacity-100 transition-all text-sm px-2 py-1 rounded border border-current">Login</button>
+                <button id="authButton" class="text-sm px-4 py-2 rounded-lg bg-green-500 text-white font-medium hover:bg-green-600 transition-colors">Login</button>
             </div>
         </div>
 
@@ -86,25 +86,6 @@
 
             <!-- Save button (admin only) -->
             <button id="modal-save-btn" onclick="saveSession()" class="w-full py-3 rounded-lg bg-green-500 text-white font-medium hover:bg-green-600 transition-colors hidden">Save Changes</button>
-        </div>
-    </div>
-
-    <!-- Login Modal -->
-    <div id="login-modal" class="fixed inset-0 z-50 hidden">
-        <div class="absolute inset-0 bg-black/50" onclick="closeLoginModal()"></div>
-        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm modal-content rounded-2xl p-6">
-            <button onclick="closeLoginModal()" class="absolute top-4 right-4 text-2xl opacity-50 hover:opacity-100">&times;</button>
-            <h2 class="text-xl font-medium mb-6">Admin Login</h2>
-            <div class="mb-4">
-                <label class="block text-sm opacity-60 mb-1">Username</label>
-                <input type="text" id="login-username" class="w-full px-3 py-2 rounded-lg modal-input">
-            </div>
-            <div class="mb-4">
-                <label class="block text-sm opacity-60 mb-1">Password</label>
-                <input type="password" id="login-password" class="w-full px-3 py-2 rounded-lg modal-input" onkeypress="if(event.key==='Enter')doLogin()">
-            </div>
-            <p id="login-error" class="text-red-500 text-sm mb-4 hidden">Invalid credentials</p>
-            <button onclick="doLogin()" class="w-full py-3 rounded-lg bg-green-500 text-white font-medium hover:bg-green-600 transition-colors">Login</button>
         </div>
     </div>
 
@@ -216,36 +197,6 @@
             btn.textContent = isAdmin ? 'Logout' : 'Login';
         }
 
-        function openLoginModal() {
-            document.getElementById('login-modal').classList.remove('hidden');
-            document.getElementById('login-error').classList.add('hidden');
-        }
-
-        function closeLoginModal() {
-            document.getElementById('login-modal').classList.add('hidden');
-        }
-
-        function doLogin() {
-            const username = document.getElementById('login-username').value;
-            const password = document.getElementById('login-password').value;
-            fetch('/api/auth/login/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            })
-            .then(r => {
-                if (r.ok) {
-                    closeLoginModal();
-                    isAdmin = true;
-                    updateAuthUI();
-                    lastMeetingsHash = null;
-                    loadMeetings();
-                } else {
-                    document.getElementById('login-error').classList.remove('hidden');
-                }
-            });
-        }
-
         function doLogout() {
             fetch('/api/auth/logout/').then(() => {
                 isAdmin = false;
@@ -257,7 +208,7 @@
 
         document.getElementById('authButton').addEventListener('click', () => {
             if (isAdmin) doLogout();
-            else openLoginModal();
+            else window.location.href = '/login/';
         });
 
         checkAuth();

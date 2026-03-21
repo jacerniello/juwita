@@ -198,3 +198,7 @@ def auth_logout(request):
 
 def index(request):
     return render(request, 'activity/index.html')
+
+
+def login_page(request):
+    return render(request, 'activity/login.html')
