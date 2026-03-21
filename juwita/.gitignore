@@ -21,10 +21,11 @@ db.sqlite3
 media/
 
 # IDE
-.idea/
+.idea
 .vscode/
 *.swp
 *.swo
+*.iml
 
 # OS
 .DS_Store
