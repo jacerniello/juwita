@@ -1,29 +1,92 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Button Logger</title>
+    <title>Meeting Tracker</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; }
+        h1 { margin-bottom: 10px; }
+        .status { padding: 15px; border-radius: 8px; margin: 20px 0; }
+        .active { background: #d4edda; border: 1px solid #c3e6cb; }
+        .inactive { background: #f8f9fa; border: 1px solid #dee2e6; }
+        .meeting { padding: 10px 15px; border-left: 3px solid #007bff; margin: 10px 0; background: #f8f9fa; }
+        .meeting-time { color: #666; font-size: 0.9em; }
+        .duration { font-weight: bold; }
+        #meetings-list { margin-top: 30px; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    </style>
 </head>
 <body>
-    <h1>Manual Testing</h1>
-    <button id="logButton">Log Event</button>
+    <h1>Meeting Tracker</h1>
+
+    <div id="status" class="status inactive">
+        <span id="status-text">Loading...</span>
+    </div>
+
+    <div>
+        <button id="pingButton">Send Test Ping</button>
+        <button id="refreshButton">Refresh</button>
+    </div>
+
+    <div id="meetings-list">
+        <h2>Past Meetings</h2>
+        <div id="meetings"></div>
+    </div>
 
     <script>
-        const button = document.getElementById('logButton');
+        function formatDate(isoString) {
+            const d = new Date(isoString);
+            return d.toLocaleDateString() + ' ' + d.toLocaleTimeString();
+        }
 
-        button.addEventListener('click', () => {
-            fetch('/api/log/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'Meeting Session' })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    console.log('Logged successfully:', data.log_id);
-                }
-            })
-            .catch(err => console.error('Error:', err));
+        function formatDuration(minutes) {
+            if (minutes < 1) return 'less than a minute';
+            if (minutes < 60) return Math.round(minutes) + ' min';
+            const hours = Math.floor(minutes / 60);
+            const mins = Math.round(minutes % 60);
+            return hours + 'h ' + mins + 'm';
+        }
+
+        function loadMeetings() {
+            fetch('/api/meetings/')
+                .then(r => r.json())
+                .then(data => {
+                    const statusEl = document.getElementById('status');
+                    const statusText = document.getElementById('status-text');
+
+                    if (data.active_meeting) {
+                        statusEl.className = 'status active';
+                        statusText.innerHTML = '<strong>Meeting in progress</strong><br>Started: ' +
+                            formatDate(data.active_meeting.start) +
+                            '<br>Duration: ' + formatDuration(data.active_meeting.duration_minutes);
+                    } else {
+                        statusEl.className = 'status inactive';
+                        statusText.textContent = 'No active meeting';
+                    }
+
+                    const meetingsEl = document.getElementById('meetings');
+                    if (data.meetings.length === 0) {
+                        meetingsEl.innerHTML = '<p>No past meetings recorded.</p>';
+                    } else {
+                        meetingsEl.innerHTML = data.meetings.reverse().map(m =>
+                            `<div class="meeting">
+                                <div class="meeting-time">${formatDate(m.start)} - ${formatDate(m.end)}</div>
+                                <div class="duration">${formatDuration(m.duration_minutes)}</div>
+                            </div>`
+                        ).join('');
+                    }
+                });
+        }
+
+        document.getElementById('pingButton').addEventListener('click', () => {
+            fetch('/api/ping/')
+                .then(r => r.json())
+                .then(() => loadMeetings());
         });
+
+        document.getElementById('refreshButton').addEventListener('click', loadMeetings);
+
+        loadMeetings();
+        setInterval(loadMeetings, 10000); // Refresh every 10 seconds
     </script>
 </body>
 </html>
