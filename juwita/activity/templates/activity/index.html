@@ -50,23 +50,27 @@
         .light { background: #f5f5f5; color: #171717; }
         .light .theme-btn { border-color: #e5e5e5; color: #737373; }
         .light .theme-btn:hover { border-color: #a3a3a3; color: #171717; }
-        .light .session-card { background: white; border: 1px solid #e5e5e5; }
-        .light .session-card:hover { background: #fafafa; }
+        .light .session-card { background: #e5e5e5; border: 1px solid #d4d4d4; }
+        .light .session-card:hover { background: #d4d4d4; }
         .light #session-label { color: #737373; }
         .light .ping-btn { background: #262626; }
         .light .ping-btn:hover { background: #404040; }
+        .light .delete-btn { color: #737373; }
+        .light .delete-btn:hover { color: #dc2626; }
 
         /* Dark mode */
         .dark { background: #0a0a0a; color: #f5f5f5; }
         .dark .theme-btn { border-color: #262626; color: #737373; }
         .dark .theme-btn:hover { border-color: #404040; color: #f5f5f5; }
-        .dark .session-card { background: #171717; border: 1px solid #262626; }
-        .dark .session-card:hover { background: #1f1f1f; }
+        .dark .session-card { background: #262626; border: 1px solid #404040; }
+        .dark .session-card:hover { background: #303030; }
         .dark #session-label { color: #737373; }
         .dark .session-text { color: #a3a3a3 !important; }
         .dark .session-time { color: #a3a3a3 !important; }
         .dark .ping-btn { background: #262626; }
         .dark .ping-btn:hover { background: #404040; }
+        .dark .delete-btn { color: #737373; }
+        .dark .delete-btn:hover { color: #dc2626; }
 
         /* Refresh spin animation */
         @keyframes spin {
@@ -211,6 +215,7 @@
 
                     data.meetings.forEach(m => {
                         entries.push({
+                            id: m.id,
                             type: 'session',
                             start: new Date(m.start),
                             end: new Date(m.end),
@@ -224,8 +229,9 @@
                         sessionsEl.innerHTML = '<p class="opacity-40 text-sm py-4 text-center">No sessions recorded yet</p>';
                     } else {
                         sessionsEl.innerHTML = entries.slice(0, 15).map(e => {
-                            return `<div class="session-card rounded-xl p-4 transition-all">
-                                <div class="flex justify-between items-center mb-2">
+                            return `<div class="session-card rounded-xl p-4 transition-all relative">
+                                <button onclick="deleteSession(${e.id})" class="delete-btn absolute top-2 right-2 w-6 h-6 flex items-center justify-center text-lg transition-colors">&times;</button>
+                                <div class="flex justify-between items-center mb-2 pr-6">
                                     <span class="inline-flex items-center gap-2">
                                         <span class="w-2 h-2 rounded-full bg-green-500"></span>
                                         <span class="font-medium text-green-600 session-text">Past Session</span>
@@ -239,6 +245,11 @@
                         }).join('');
                     }
                 });
+        }
+
+        function deleteSession(id) {
+            fetch('/api/meetings/' + id + '/', { method: 'DELETE' })
+                .then(() => loadMeetings());
         }
 
         document.getElementById('pingButton').addEventListener('click', () => {

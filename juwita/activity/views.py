@@ -82,5 +82,18 @@ def meetings(request):
     return JsonResponse(result)
 
 
+@csrf_exempt
+def delete_meeting(request, meeting_id):
+    """Delete a meeting by ID."""
+    if request.method == "DELETE":
+        try:
+            meeting = Meeting.objects.get(id=meeting_id)
+            meeting.delete()
+            return JsonResponse({"success": True})
+        except Meeting.DoesNotExist:
+            return JsonResponse({"error": "Meeting not found"}, status=404)
+    return JsonResponse({"error": "Invalid request"}, status=400)
+
+
 def index(request):
     return render(request, 'activity/index.html')

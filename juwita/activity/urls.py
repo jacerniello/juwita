@@ -9,4 +9,6 @@ urlpatterns = [
     path('api/ping', views.ping),
     path('api/meetings/', views.meetings, name='meetings'),
     path('api/meetings', views.meetings),
+    path('api/meetings/<int:meeting_id>/', views.delete_meeting, name='delete_meeting'),
+    path('api/meetings/<int:meeting_id>', views.delete_meeting),
 ]
