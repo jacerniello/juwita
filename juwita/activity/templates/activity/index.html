@@ -229,9 +229,9 @@
                         sessionsEl.innerHTML = '<p class="opacity-40 text-sm py-4 text-center">No sessions recorded yet</p>';
                     } else {
                         sessionsEl.innerHTML = entries.slice(0, 15).map(e => {
-                            return `<div class="session-card rounded-xl p-4 transition-all relative">
-                                <button onclick="deleteSession(${e.id})" class="delete-btn absolute top-2 right-2 w-6 h-6 flex items-center justify-center text-lg transition-colors">&times;</button>
-                                <div class="flex justify-between items-center mb-2 pr-6">
+                            return `<div class="session-card rounded-xl p-4 transition-all" style="position: relative;">
+                                <button onclick="deleteSession(${e.id})" class="delete-btn" style="position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 18px; background: none; border: none; cursor: pointer;">&times;</button>
+                                <div class="flex justify-between items-center mb-2" style="padding-right: 24px;">
                                     <span class="inline-flex items-center gap-2">
                                         <span class="w-2 h-2 rounded-full bg-green-500"></span>
                                         <span class="font-medium text-green-600 session-text">Past Session</span>
