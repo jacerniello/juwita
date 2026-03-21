@@ -41,6 +41,48 @@
 
     </div>
 
+    <!-- Session Detail Modal -->
+    <div id="modal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/50" onclick="closeModal()"></div>
+        <div class="absolute inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-full md:max-w-lg modal-content rounded-2xl p-6 overflow-y-auto max-h-[90vh]">
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-2xl opacity-50 hover:opacity-100">&times;</button>
+            <h2 class="text-xl font-medium mb-6">Session Details</h2>
+
+            <input type="hidden" id="modal-meeting-id">
+
+            <!-- Time inputs -->
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm opacity-60 mb-1">Start Time</label>
+                    <input type="datetime-local" id="modal-start" class="w-full px-3 py-2 rounded-lg modal-input">
+                </div>
+                <div>
+                    <label class="block text-sm opacity-60 mb-1">End Time</label>
+                    <input type="datetime-local" id="modal-end" class="w-full px-3 py-2 rounded-lg modal-input">
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="mb-4">
+                <label class="block text-sm opacity-60 mb-1">Notes</label>
+                <textarea id="modal-notes" rows="4" class="w-full px-3 py-2 rounded-lg modal-input resize-none" placeholder="Add notes..."></textarea>
+            </div>
+
+            <!-- Photos -->
+            <div class="mb-4">
+                <label class="block text-sm opacity-60 mb-2">Photos</label>
+                <div id="modal-photos" class="grid grid-cols-3 gap-2 mb-2"></div>
+                <label class="inline-flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer modal-upload-btn">
+                    <span>+ Add Photo</span>
+                    <input type="file" id="photo-input" accept="image/*" class="hidden" onchange="uploadPhoto()">
+                </label>
+            </div>
+
+            <!-- Save button -->
+            <button onclick="saveSession()" class="w-full py-3 rounded-lg bg-green-500 text-white font-medium hover:bg-green-600 transition-colors">Save Changes</button>
+        </div>
+    </div>
+
     <style>
         /* Light mode */
         .light { background: #f5f5f5; color: #171717; }
@@ -51,6 +93,10 @@
         .light #session-label { color: #737373; }
         .light .delete-btn { color: #737373; }
         .light .delete-btn:hover { color: #dc2626; }
+        .light .modal-content { background: #f5f5f5; }
+        .light .modal-input { background: white; border: 1px solid #e5e5e5; color: #171717; }
+        .light .modal-upload-btn { background: #e5e5e5; }
+        .light .modal-upload-btn:hover { background: #d4d4d4; }
 
         /* Dark mode */
         .dark { background: #0a0a0a; color: #f5f5f5; }
@@ -63,6 +109,10 @@
         .dark .session-time { color: #d4d4d4 !important; }
         .dark .delete-btn { color: #737373; }
         .dark .delete-btn:hover { color: #dc2626; }
+        .dark .modal-content { background: #171717; }
+        .dark .modal-input { background: #262626; border: 1px solid #404040; color: #f5f5f5; }
+        .dark .modal-upload-btn { background: #262626; }
+        .dark .modal-upload-btn:hover { background: #303030; }
 
         /* Refresh spin animation */
         @keyframes spin {
@@ -235,8 +285,8 @@
                         sessionsEl.innerHTML = '<p class="opacity-40 text-sm py-4 text-center">No sessions recorded yet</p>';
                     } else {
                         sessionsEl.innerHTML = entries.slice(0, 15).map(e => {
-                            return `<div class="session-card rounded-xl p-4 transition-all" style="position: relative;">
-                                <button onclick="deleteSession(${e.id})" class="delete-btn" style="position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 18px; background: none; border: none; cursor: pointer;">&times;</button>
+                            return `<div class="session-card rounded-xl p-4 transition-all cursor-pointer" style="position: relative;" onclick="openSession(${e.id})">
+                                <button onclick="event.stopPropagation(); deleteSession(${e.id})" class="delete-btn" style="position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 18px; background: none; border: none; cursor: pointer;">&times;</button>
                                 <div class="flex justify-between items-center mb-2" style="padding-right: 24px;">
                                     <span class="inline-flex items-center gap-2">
                                         <span class="w-2 h-2 rounded-full bg-green-500"></span>
@@ -255,7 +305,81 @@
 
         function deleteSession(id) {
             fetch('/api/meetings/' + id + '/', { method: 'DELETE' })
-                .then(() => loadMeetings());
+                .then(() => {
+                    lastMeetingsHash = null;
+                    loadMeetings();
+                });
+        }
+
+        // Modal functions
+        function openSession(id) {
+            fetch('/api/meetings/' + id + '/')
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('modal-meeting-id').value = id;
+                    document.getElementById('modal-start').value = data.start.slice(0, 16);
+                    document.getElementById('modal-end').value = data.end ? data.end.slice(0, 16) : '';
+                    document.getElementById('modal-notes').value = data.notes || '';
+                    renderPhotos(data.photos);
+                    document.getElementById('modal').classList.remove('hidden');
+                });
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.add('hidden');
+        }
+
+        function renderPhotos(photos) {
+            const container = document.getElementById('modal-photos');
+            if (photos.length === 0) {
+                container.innerHTML = '<p class="col-span-3 text-sm opacity-40">No photos yet</p>';
+            } else {
+                container.innerHTML = photos.map(p => `
+                    <div class="relative group">
+                        <img src="${p.url}" class="w-full h-20 object-cover rounded-lg">
+                        <button onclick="deletePhoto(${p.id})" class="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity">&times;</button>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function uploadPhoto() {
+            const input = document.getElementById('photo-input');
+            const file = input.files[0];
+            if (!file) return;
+            const id = document.getElementById('modal-meeting-id').value;
+            const formData = new FormData();
+            formData.append('photo', file);
+            fetch('/api/meetings/' + id + '/photos/', { method: 'POST', body: formData })
+                .then(r => r.json())
+                .then(() => {
+                    input.value = '';
+                    openSession(id);
+                });
+        }
+
+        function deletePhoto(photoId) {
+            const id = document.getElementById('modal-meeting-id').value;
+            fetch('/api/meetings/' + id + '/photos/' + photoId + '/', { method: 'DELETE' })
+                .then(() => openSession(id));
+        }
+
+        function saveSession() {
+            const id = document.getElementById('modal-meeting-id').value;
+            const data = {
+                start: document.getElementById('modal-start').value,
+                end: document.getElementById('modal-end').value,
+                notes: document.getElementById('modal-notes').value
+            };
+            fetch('/api/meetings/' + id + '/', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            }).then(() => {
+                closeModal();
+                lastMeetingsHash = null;
+                loadMeetings();
+            });
         }
 
         document.getElementById('refreshButton').addEventListener('click', () => {

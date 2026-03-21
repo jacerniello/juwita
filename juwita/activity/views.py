@@ -2,7 +2,8 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
-from .models import Log, Meeting
+from datetime import datetime
+from .models import Log, Meeting, MeetingPhoto
 import json
 
 
@@ -83,15 +84,70 @@ def meetings(request):
 
 
 @csrf_exempt
-def delete_meeting(request, meeting_id):
-    """Delete a meeting by ID."""
+def meeting_detail(request, meeting_id):
+    """Get, update, or delete a meeting."""
+    try:
+        meeting = Meeting.objects.get(id=meeting_id)
+    except Meeting.DoesNotExist:
+        return JsonResponse({"error": "Meeting not found"}, status=404)
+
+    if request.method == "GET":
+        photos = [{"id": p.id, "url": p.image.url} for p in meeting.photos.all()]
+        return JsonResponse({
+            "id": meeting.id,
+            "start": meeting.start_time.isoformat(),
+            "end": meeting.end_time.isoformat() if meeting.end_time else None,
+            "notes": meeting.notes,
+            "photos": photos,
+            "duration_minutes": meeting.duration.total_seconds() / 60
+        })
+
+    elif request.method == "PATCH":
+        data = json.loads(request.body)
+        if "notes" in data:
+            meeting.notes = data["notes"]
+        if "start" in data:
+            meeting.start_time = datetime.fromisoformat(data["start"].replace('Z', '+00:00'))
+        if "end" in data:
+            meeting.end_time = datetime.fromisoformat(data["end"].replace('Z', '+00:00'))
+        meeting.save()
+        return JsonResponse({"success": True})
+
+    elif request.method == "DELETE":
+        meeting.delete()
+        return JsonResponse({"success": True})
+
+    return JsonResponse({"error": "Invalid request"}, status=400)
+
+
+@csrf_exempt
+def meeting_photos(request, meeting_id):
+    """Upload photos to a meeting."""
+    try:
+        meeting = Meeting.objects.get(id=meeting_id)
+    except Meeting.DoesNotExist:
+        return JsonResponse({"error": "Meeting not found"}, status=404)
+
+    if request.method == "POST":
+        if "photo" not in request.FILES:
+            return JsonResponse({"error": "No photo provided"}, status=400)
+        photo = MeetingPhoto.objects.create(meeting=meeting, image=request.FILES["photo"])
+        return JsonResponse({"success": True, "photo_id": photo.id, "url": photo.image.url})
+
+    return JsonResponse({"error": "Invalid request"}, status=400)
+
+
+@csrf_exempt
+def delete_photo(request, meeting_id, photo_id):
+    """Delete a photo from a meeting."""
     if request.method == "DELETE":
         try:
-            meeting = Meeting.objects.get(id=meeting_id)
-            meeting.delete()
+            photo = MeetingPhoto.objects.get(id=photo_id, meeting_id=meeting_id)
+            photo.image.delete()
+            photo.delete()
             return JsonResponse({"success": True})
-        except Meeting.DoesNotExist:
-            return JsonResponse({"error": "Meeting not found"}, status=404)
+        except MeetingPhoto.DoesNotExist:
+            return JsonResponse({"error": "Photo not found"}, status=404)
     return JsonResponse({"error": "Invalid request"}, status=400)
 
 

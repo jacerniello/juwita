@@ -16,6 +16,7 @@ class Meeting(models.Model):
     start_time = models.DateTimeField(auto_now_add=True)
     end_time = models.DateTimeField(null=True, blank=True)
     last_ping = models.DateTimeField(auto_now_add=True)
+    notes = models.TextField(blank=True, default='')
 
     PING_TIMEOUT = 60  # seconds - meeting ends after this much silence
 
@@ -58,5 +59,12 @@ class Meeting(models.Model):
     def __str__(self):
         status = "active" if self.is_active else "ended"
         return f"Meeting {self.id} ({status}) - {self.start_time}"
-    
-    
+
+
+class MeetingPhoto(models.Model):
+    meeting = models.ForeignKey(Meeting, on_delete=models.CASCADE, related_name='photos')
+    image = models.ImageField(upload_to='meeting_photos/')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Photo for Meeting {self.meeting_id}"
