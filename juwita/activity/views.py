@@ -2,8 +2,7 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
-from datetime import timedelta
-from .models import Log
+from .models import Log, Meeting
 import json
 
 
@@ -22,60 +21,61 @@ def log_action(request):
 
 
 def ping(request):
-    """ESP device pings this endpoint every ~30 seconds"""
+    """ESP device pings this endpoint. Manages meeting state automatically."""
+    # Log the ping
     metadata = {
         "ip": request.META.get("REMOTE_ADDR"),
         "user_agent": request.META.get("HTTP_USER_AGENT")
     }
     log = Log.objects.create(action="ping", metadata=metadata)
-    return JsonResponse({"success": True, "ping_id": log.id, "timestamp": log.timestamp.isoformat()})
+
+    # Get or create active meeting
+    meeting = Meeting.get_or_create_active()
+
+    return JsonResponse({
+        "success": True,
+        "ping_id": log.id,
+        "timestamp": log.timestamp.isoformat(),
+        "meeting_id": meeting.id,
+        "meeting_active": meeting.is_active
+    })
 
 
 def meetings(request):
-    """Aggregate pings into meetings. A meeting ends after 5 minutes of no pings."""
-    gap_minutes = int(request.GET.get("gap", 5))
-    gap = timedelta(minutes=gap_minutes)
-
-    pings = Log.objects.filter(action="ping").order_by("timestamp")
-
-    meetings_list = []
-    current_meeting = None
-
-    for ping in pings:
-        if current_meeting is None:
-            current_meeting = {"start": ping.timestamp, "end": ping.timestamp}
-        elif ping.timestamp - current_meeting["end"] > gap:
-            # Gap detected, save current meeting and start new one
-            meetings_list.append(current_meeting)
-            current_meeting = {"start": ping.timestamp, "end": ping.timestamp}
-        else:
-            # Extend current meeting
-            current_meeting["end"] = ping.timestamp
-
-    # Add the last meeting if exists
-    if current_meeting:
-        meetings_list.append(current_meeting)
-
-    # Check if there's an active meeting (last ping within gap time)
+    """Return all meetings with their status."""
     now = timezone.now()
-    active_meeting = None
-    if meetings_list and now - meetings_list[-1]["end"] <= gap:
-        active_meeting = meetings_list.pop()
 
-    # Format for JSON response
+    # Close any stale meetings
+    stale_meetings = Meeting.objects.filter(
+        end_time__isnull=True
+    ).exclude(
+        last_ping__gte=now - timezone.timedelta(seconds=Meeting.PING_TIMEOUT)
+    )
+    for m in stale_meetings:
+        m.end_time = m.last_ping
+        m.save()
+
+    # Get active meeting
+    active = Meeting.objects.filter(end_time__isnull=True).first()
+
+    # Get completed meetings
+    completed = Meeting.objects.filter(end_time__isnull=False).order_by('-start_time')[:20]
+
     result = {
+        "active_meeting": {
+            "id": active.id,
+            "start": active.start_time.isoformat(),
+            "duration_minutes": active.duration.total_seconds() / 60
+        } if active and active.is_active else None,
         "meetings": [
             {
-                "start": m["start"].isoformat(),
-                "end": m["end"].isoformat(),
-                "duration_minutes": (m["end"] - m["start"]).total_seconds() / 60
+                "id": m.id,
+                "start": m.start_time.isoformat(),
+                "end": m.end_time.isoformat(),
+                "duration_minutes": m.duration.total_seconds() / 60
             }
-            for m in meetings_list
-        ],
-        "active_meeting": {
-            "start": active_meeting["start"].isoformat(),
-            "duration_minutes": (now - active_meeting["start"]).total_seconds() / 60
-        } if active_meeting else None
+            for m in completed
+        ]
     }
 
     return JsonResponse(result)

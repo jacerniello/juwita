@@ -7,47 +7,96 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     {% tailwind_css %}
 </head>
-<body class="bg-neutral-950 min-h-screen text-neutral-100 font-light">
-    <div class="max-w-md mx-auto px-6 py-16">
+<body id="body" class="min-h-screen font-light transition-colors duration-300 bg-neutral-950 text-neutral-100">
+    <div class="max-w-md mx-auto px-6 py-12">
         <!-- Header -->
-        <h1 class="text-2xl tracking-tight mb-12">juwita</h1>
-
-        <!-- Status -->
-        <div id="status" class="mb-16">
-            <div class="flex items-center gap-3 mb-1">
-                <div id="status-dot" class="w-2 h-2 rounded-full bg-neutral-600"></div>
-                <span id="status-text" class="text-sm text-neutral-400">loading</span>
-            </div>
-            <p id="status-detail" class="text-xs text-neutral-600 ml-5"></p>
+        <div class="flex justify-between items-center mb-10">
+            <h1 class="text-2xl tracking-tight">juwita</h1>
+            <button id="themeToggle" class="w-8 h-8 rounded-full border transition-all flex items-center justify-center text-sm theme-btn">
+                <span id="themeIcon">☀</span>
+            </button>
         </div>
 
-        <!-- Meetings -->
+        <!-- Status Card -->
+        <div id="status-card" class="rounded-xl p-5 mb-10 transition-all status-card">
+            <div class="flex items-center gap-3">
+                <div id="status-dot" class="w-3 h-3 rounded-full bg-neutral-600"></div>
+                <div>
+                    <p id="status-text" class="font-medium">loading</p>
+                    <p id="status-detail" class="text-sm opacity-60"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Meetings List -->
         <div>
-            <p class="text-xs text-neutral-500 uppercase tracking-widest mb-4">History</p>
-            <div id="meetings" class="space-y-4">
+            <p class="text-xs uppercase tracking-widest mb-4 opacity-50">History</p>
+            <div id="meetings" class="space-y-2">
             </div>
         </div>
 
-        <!-- Controls (subtle) -->
+        <!-- Controls -->
         <div class="fixed bottom-6 right-6 flex gap-2">
-            <button id="pingButton" class="w-8 h-8 rounded-full bg-neutral-900 border border-neutral-800 text-neutral-500 hover:text-neutral-300 hover:border-neutral-700 transition-all text-xs">+</button>
-            <button id="refreshButton" class="w-8 h-8 rounded-full bg-neutral-900 border border-neutral-800 text-neutral-500 hover:text-neutral-300 hover:border-neutral-700 transition-all text-xs">↻</button>
+            <button id="pingButton" class="w-10 h-10 rounded-full transition-all text-lg ctrl-btn">+</button>
+            <button id="refreshButton" class="w-10 h-10 rounded-full transition-all ctrl-btn">↻</button>
         </div>
     </div>
 
+    <style>
+        /* Dark mode (default) */
+        .dark .status-card { background: rgba(38, 38, 38, 0.5); border: 1px solid rgba(64, 64, 64, 0.5); }
+        .dark .meeting-card { background: rgba(38, 38, 38, 0.3); border: 1px solid rgba(64, 64, 64, 0.3); }
+        .dark .meeting-card:hover { background: rgba(38, 38, 38, 0.6); }
+        .dark .ctrl-btn { background: rgb(23, 23, 23); border: 1px solid rgb(38, 38, 38); color: rgb(115, 115, 115); }
+        .dark .ctrl-btn:hover { border-color: rgb(64, 64, 64); color: rgb(163, 163, 163); }
+        .dark .theme-btn { border-color: rgb(38, 38, 38); color: rgb(115, 115, 115); }
+        .dark .theme-btn:hover { border-color: rgb(64, 64, 64); color: rgb(212, 212, 212); }
+
+        /* Light mode */
+        .light { background: rgb(250, 250, 250); color: rgb(23, 23, 23); }
+        .light .status-card { background: white; border: 1px solid rgb(229, 229, 229); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .light .meeting-card { background: white; border: 1px solid rgb(229, 229, 229); }
+        .light .meeting-card:hover { background: rgb(245, 245, 245); }
+        .light .ctrl-btn { background: white; border: 1px solid rgb(229, 229, 229); color: rgb(115, 115, 115); }
+        .light .ctrl-btn:hover { border-color: rgb(163, 163, 163); color: rgb(64, 64, 64); }
+        .light .theme-btn { border-color: rgb(229, 229, 229); color: rgb(115, 115, 115); }
+        .light .theme-btn:hover { border-color: rgb(163, 163, 163); color: rgb(23, 23, 23); }
+    </style>
+
     <script>
+        // Theme toggle
+        let isDark = localStorage.getItem('theme') !== 'light';
+        function applyTheme() {
+            const body = document.getElementById('body');
+            body.classList.remove('dark', 'light', 'bg-neutral-950', 'text-neutral-100');
+            if (isDark) {
+                body.classList.add('dark', 'bg-neutral-950', 'text-neutral-100');
+                document.getElementById('themeIcon').textContent = '☀';
+            } else {
+                body.classList.add('light');
+                document.getElementById('themeIcon').textContent = '☾';
+            }
+        }
+        applyTheme();
+
+        document.getElementById('themeToggle').addEventListener('click', () => {
+            isDark = !isDark;
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            applyTheme();
+        });
+
+        // Utilities
         function formatTime(isoString) {
-            const d = new Date(isoString);
-            return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
 
         function formatDate(isoString) {
             const d = new Date(isoString);
             const today = new Date();
-            if (d.toDateString() === today.toDateString()) return 'today';
+            if (d.toDateString() === today.toDateString()) return 'Today';
             const yesterday = new Date(today);
             yesterday.setDate(yesterday.getDate() - 1);
-            if (d.toDateString() === yesterday.toDateString()) return 'yesterday';
+            if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
             return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
         }
 
@@ -59,6 +108,7 @@
             return h + 'h ' + m + 'm';
         }
 
+        // Load meetings
         function loadMeetings() {
             fetch('/api/meetings/')
                 .then(r => r.json())
@@ -66,27 +116,33 @@
                     const dot = document.getElementById('status-dot');
                     const text = document.getElementById('status-text');
                     const detail = document.getElementById('status-detail');
+                    const card = document.getElementById('status-card');
 
                     if (data.active_meeting) {
-                        dot.className = 'w-2 h-2 rounded-full bg-green-500 animate-pulse';
-                        text.textContent = 'in session';
-                        text.className = 'text-sm text-green-500';
-                        detail.textContent = formatDuration(data.active_meeting.duration_minutes);
+                        dot.className = 'w-3 h-3 rounded-full bg-green-500 animate-pulse';
+                        text.textContent = 'In Session';
+                        text.className = 'font-medium text-green-500';
+                        detail.textContent = 'Duration: ' + formatDuration(data.active_meeting.duration_minutes);
                     } else {
-                        dot.className = 'w-2 h-2 rounded-full bg-neutral-600';
-                        text.textContent = 'idle';
-                        text.className = 'text-sm text-neutral-400';
-                        detail.textContent = '';
+                        dot.className = 'w-3 h-3 rounded-full bg-neutral-500';
+                        text.textContent = 'Idle';
+                        text.className = 'font-medium opacity-60';
+                        detail.textContent = 'No active session';
                     }
 
                     const meetingsEl = document.getElementById('meetings');
                     if (data.meetings.length === 0) {
-                        meetingsEl.innerHTML = '<p class="text-neutral-700 text-sm">no meetings yet</p>';
+                        meetingsEl.innerHTML = '<p class="opacity-40 text-sm py-4">No meetings recorded yet</p>';
                     } else {
-                        meetingsEl.innerHTML = data.meetings.reverse().slice(0, 10).map(m =>
-                            `<div class="flex justify-between items-baseline text-sm">
-                                <span class="text-neutral-500">${formatDate(m.start)} ${formatTime(m.start)}</span>
-                                <span class="text-neutral-600">${formatDuration(m.duration_minutes)}</span>
+                        meetingsEl.innerHTML = data.meetings.map(m =>
+                            `<div class="meeting-card rounded-lg p-4 transition-all cursor-default">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <p class="font-medium">${formatDate(m.start)}</p>
+                                        <p class="text-sm opacity-50">${formatTime(m.start)} – ${formatTime(m.end)}</p>
+                                    </div>
+                                    <span class="text-sm font-medium opacity-70">${formatDuration(m.duration_minutes)}</span>
+                                </div>
                             </div>`
                         ).join('');
                     }
@@ -94,12 +150,12 @@
         }
 
         document.getElementById('pingButton').addEventListener('click', () => {
-            fetch('/api/ping/').then(() => loadMeetings());
+            fetch('/api/ping').then(() => loadMeetings());
         });
         document.getElementById('refreshButton').addEventListener('click', loadMeetings);
 
         loadMeetings();
-        setInterval(loadMeetings, 3000);
+        setInterval(loadMeetings, 10000);
     </script>
 </body>
 </html>
