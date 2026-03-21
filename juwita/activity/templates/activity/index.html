@@ -4,8 +4,8 @@
     <title>Button Logger</title>
 </head>
 <body>
-    <h1>Click the button to log an action</h1>
-    <button id="logButton">Click Me</button>
+    <h1>Manual Testing</h1>
+    <button id="logButton">Log Event</button>
 
     <script>
         const button = document.getElementById('logButton');
@@ -14,7 +14,7 @@
             fetch('/api/log/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'button_clicked' })
+                body: JSON.stringify({ action: 'Meeting Session' })
             })
             .then(response => response.json())
             .then(data => {
