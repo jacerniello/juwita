@@ -1,41 +1,66 @@
+{% load static tailwind_tags %}
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Meeting Tracker</title>
-    <style>
-        body { font-family: system-ui, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; }
-        h1 { margin-bottom: 10px; }
-        .status { padding: 15px; border-radius: 8px; margin: 20px 0; }
-        .active { background: #d4edda; border: 1px solid #c3e6cb; }
-        .inactive { background: #f8f9fa; border: 1px solid #dee2e6; }
-        .meeting { padding: 10px 15px; border-left: 3px solid #007bff; margin: 10px 0; background: #f8f9fa; }
-        .meeting-time { color: #666; font-size: 0.9em; }
-        .duration { font-weight: bold; }
-        #meetings-list { margin-top: 30px; }
-        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
-    </style>
+    <title>Juwita - Meeting Tracker</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% tailwind_css %}
 </head>
-<body>
-    <h1>Meeting Tracker</h1>
+<body class="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 min-h-screen text-white">
+    <div class="container mx-auto px-4 py-8 max-w-2xl">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                Juwita
+            </h1>
+            <p class="text-slate-400 mt-2">Meeting Tracker</p>
+        </div>
 
-    <div id="status" class="status inactive">
-        <span id="status-text">Loading...</span>
-    </div>
+        <!-- Status Card -->
+        <div id="status-card" class="rounded-2xl p-6 mb-6 transition-all duration-300 bg-slate-800/50 border border-slate-700">
+            <div class="flex items-center gap-4">
+                <div id="status-indicator" class="w-4 h-4 rounded-full bg-slate-500 animate-pulse"></div>
+                <div>
+                    <p id="status-title" class="text-lg font-semibold">Loading...</p>
+                    <p id="status-detail" class="text-sm text-slate-400"></p>
+                </div>
+            </div>
+        </div>
 
-    <div>
-        <button id="pingButton">Send Test Ping</button>
-        <button id="refreshButton">Refresh</button>
-    </div>
+        <!-- Controls -->
+        <div class="flex gap-3 mb-8">
+            <button id="pingButton" class="flex-1 bg-purple-600 hover:bg-purple-500 text-white font-medium py-3 px-6 rounded-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]">
+                Send Test Ping
+            </button>
+            <button id="refreshButton" class="bg-slate-700 hover:bg-slate-600 text-white font-medium py-3 px-6 rounded-xl transition-all duration-200">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+            </button>
+        </div>
 
-    <div id="meetings-list">
-        <h2>Past Meetings</h2>
-        <div id="meetings"></div>
+        <!-- Past Meetings -->
+        <div class="mb-4">
+            <h2 class="text-xl font-semibold text-slate-300 mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Past Meetings
+            </h2>
+            <div id="meetings" class="space-y-3">
+                <!-- Meetings will be inserted here -->
+            </div>
+        </div>
     </div>
 
     <script>
         function formatDate(isoString) {
             const d = new Date(isoString);
-            return d.toLocaleDateString() + ' ' + d.toLocaleTimeString();
+            const today = new Date();
+            const isToday = d.toDateString() === today.toDateString();
+            const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            return isToday ? `Today at ${time}` : `${d.toLocaleDateString()} at ${time}`;
         }
 
         function formatDuration(minutes) {
@@ -50,27 +75,38 @@
             fetch('/api/meetings/')
                 .then(r => r.json())
                 .then(data => {
-                    const statusEl = document.getElementById('status');
-                    const statusText = document.getElementById('status-text');
+                    const statusCard = document.getElementById('status-card');
+                    const statusIndicator = document.getElementById('status-indicator');
+                    const statusTitle = document.getElementById('status-title');
+                    const statusDetail = document.getElementById('status-detail');
 
                     if (data.active_meeting) {
-                        statusEl.className = 'status active';
-                        statusText.innerHTML = '<strong>Meeting in progress</strong><br>Started: ' +
-                            formatDate(data.active_meeting.start) +
-                            '<br>Duration: ' + formatDuration(data.active_meeting.duration_minutes);
+                        statusCard.className = 'rounded-2xl p-6 mb-6 transition-all duration-300 bg-gradient-to-r from-green-900/50 to-emerald-900/50 border border-green-700/50';
+                        statusIndicator.className = 'w-4 h-4 rounded-full bg-green-400 animate-pulse';
+                        statusTitle.textContent = 'Meeting in Progress';
+                        statusDetail.innerHTML = `Started ${formatDate(data.active_meeting.start)} &bull; ${formatDuration(data.active_meeting.duration_minutes)}`;
                     } else {
-                        statusEl.className = 'status inactive';
-                        statusText.textContent = 'No active meeting';
+                        statusCard.className = 'rounded-2xl p-6 mb-6 transition-all duration-300 bg-slate-800/50 border border-slate-700';
+                        statusIndicator.className = 'w-4 h-4 rounded-full bg-slate-500';
+                        statusTitle.textContent = 'No Active Meeting';
+                        statusDetail.textContent = 'Waiting for activity...';
                     }
 
                     const meetingsEl = document.getElementById('meetings');
                     if (data.meetings.length === 0) {
-                        meetingsEl.innerHTML = '<p>No past meetings recorded.</p>';
+                        meetingsEl.innerHTML = '<p class="text-slate-500 text-center py-8">No past meetings recorded yet.</p>';
                     } else {
                         meetingsEl.innerHTML = data.meetings.reverse().map(m =>
-                            `<div class="meeting">
-                                <div class="meeting-time">${formatDate(m.start)} - ${formatDate(m.end)}</div>
-                                <div class="duration">${formatDuration(m.duration_minutes)}</div>
+                            `<div class="bg-slate-800/30 border border-slate-700/50 rounded-xl p-4 hover:bg-slate-800/50 transition-all">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <p class="text-slate-300 font-medium">${formatDate(m.start)}</p>
+                                        <p class="text-slate-500 text-sm">to ${formatDate(m.end)}</p>
+                                    </div>
+                                    <span class="bg-purple-900/50 text-purple-300 px-3 py-1 rounded-full text-sm font-medium">
+                                        ${formatDuration(m.duration_minutes)}
+                                    </span>
+                                </div>
                             </div>`
                         ).join('');
                     }
@@ -86,7 +122,7 @@
         document.getElementById('refreshButton').addEventListener('click', loadMeetings);
 
         loadMeetings();
-        setInterval(loadMeetings, 10000); // Refresh every 10 seconds
+        setInterval(loadMeetings, 10000);
     </script>
 </body>
 </html>
