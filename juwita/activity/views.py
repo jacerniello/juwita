@@ -33,6 +33,15 @@ def log_action(request):
 
 def ping(request):
     """ESP device pings this endpoint. Manages meeting state automatically."""
+    import os
+
+    # Check API key if configured
+    api_key = os.getenv('PING_API_KEY', '')
+    if api_key:
+        provided_key = request.headers.get('X-API-Key') or request.GET.get('key')
+        if provided_key != api_key:
+            return JsonResponse({"error": "Invalid API key"}, status=401)
+
     # Log the ping
     metadata = {
         "ip": request.META.get("REMOTE_ADDR"),
