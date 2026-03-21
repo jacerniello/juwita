@@ -18,7 +18,7 @@ class Meeting(models.Model):
     last_ping = models.DateTimeField(auto_now_add=True)
     notes = models.TextField(blank=True, default='')
 
-    PING_TIMEOUT = 60  # seconds - meeting ends after this much silence
+    PING_TIMEOUT = 30  # seconds - meeting ends after this much silence
 
     @property
     def is_active(self):
