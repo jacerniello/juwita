@@ -15,4 +15,10 @@ urlpatterns = [
     path('api/meetings/<int:meeting_id>/photos', views.meeting_photos),
     path('api/meetings/<int:meeting_id>/photos/<int:photo_id>/', views.delete_photo, name='delete_photo'),
     path('api/meetings/<int:meeting_id>/photos/<int:photo_id>', views.delete_photo),
+    path('api/auth/status/', views.auth_status, name='auth_status'),
+    path('api/auth/status', views.auth_status),
+    path('api/auth/login/', views.auth_login, name='auth_login'),
+    path('api/auth/login', views.auth_login),
+    path('api/auth/logout/', views.auth_logout, name='auth_logout'),
+    path('api/auth/logout', views.auth_logout),
 ]

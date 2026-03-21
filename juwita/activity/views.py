@@ -1,10 +1,20 @@
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth import authenticate, login, logout
 from django.utils import timezone
 from datetime import datetime
 from .models import Log, Meeting, MeetingPhoto
 import json
+
+
+def require_admin(view_func):
+    """Decorator to require admin authentication."""
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Authentication required"}, status=401)
+        return view_func(request, *args, **kwargs)
+    return wrapper
 
 
 @csrf_exempt
@@ -103,6 +113,8 @@ def meeting_detail(request, meeting_id):
         })
 
     elif request.method == "PATCH":
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Authentication required"}, status=401)
         data = json.loads(request.body)
         if "notes" in data:
             meeting.notes = data["notes"]
@@ -114,6 +126,8 @@ def meeting_detail(request, meeting_id):
         return JsonResponse({"success": True})
 
     elif request.method == "DELETE":
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Authentication required"}, status=401)
         meeting.delete()
         return JsonResponse({"success": True})
 
@@ -129,6 +143,8 @@ def meeting_photos(request, meeting_id):
         return JsonResponse({"error": "Meeting not found"}, status=404)
 
     if request.method == "POST":
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Authentication required"}, status=401)
         if "photo" not in request.FILES:
             return JsonResponse({"error": "No photo provided"}, status=400)
         photo = MeetingPhoto.objects.create(meeting=meeting, image=request.FILES["photo"])
@@ -141,6 +157,8 @@ def meeting_photos(request, meeting_id):
 def delete_photo(request, meeting_id, photo_id):
     """Delete a photo from a meeting."""
     if request.method == "DELETE":
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Authentication required"}, status=401)
         try:
             photo = MeetingPhoto.objects.get(id=photo_id, meeting_id=meeting_id)
             photo.image.delete()
@@ -149,6 +167,33 @@ def delete_photo(request, meeting_id, photo_id):
         except MeetingPhoto.DoesNotExist:
             return JsonResponse({"error": "Photo not found"}, status=404)
     return JsonResponse({"error": "Invalid request"}, status=400)
+
+
+def auth_status(request):
+    """Check if user is authenticated."""
+    return JsonResponse({
+        "authenticated": request.user.is_authenticated,
+        "username": request.user.username if request.user.is_authenticated else None
+    })
+
+
+@csrf_exempt
+def auth_login(request):
+    """Login endpoint."""
+    if request.method == "POST":
+        data = json.loads(request.body)
+        user = authenticate(request, username=data.get("username"), password=data.get("password"))
+        if user is not None:
+            login(request, user)
+            return JsonResponse({"success": True, "username": user.username})
+        return JsonResponse({"error": "Invalid credentials"}, status=401)
+    return JsonResponse({"error": "Invalid request"}, status=400)
+
+
+def auth_logout(request):
+    """Logout endpoint."""
+    logout(request)
+    return JsonResponse({"success": True})
 
 
 def index(request):

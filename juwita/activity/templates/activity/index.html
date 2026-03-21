@@ -23,6 +23,7 @@
                     </svg>
                 </button>
                 <button id="refreshButton" class="opacity-50 hover:opacity-100 transition-all text-xl">↻</button>
+                <button id="authButton" class="opacity-50 hover:opacity-100 transition-all text-sm px-2 py-1 rounded border border-current">Login</button>
             </div>
         </div>
 
@@ -50,8 +51,8 @@
 
             <input type="hidden" id="modal-meeting-id">
 
-            <!-- Time inputs -->
-            <div class="grid grid-cols-2 gap-4 mb-4">
+            <!-- Time inputs (admin only) -->
+            <div id="modal-times" class="grid grid-cols-2 gap-4 mb-4 hidden">
                 <div>
                     <label class="block text-sm opacity-60 mb-1">Start Time</label>
                     <input type="datetime-local" id="modal-start" class="w-full px-3 py-2 rounded-lg modal-input">
@@ -61,25 +62,49 @@
                     <input type="datetime-local" id="modal-end" class="w-full px-3 py-2 rounded-lg modal-input">
                 </div>
             </div>
+            <!-- Time display (non-admin) -->
+            <div id="modal-times-readonly" class="mb-4">
+                <p class="text-sm opacity-60 mb-1">Time</p>
+                <p id="modal-time-display" class="text-lg"></p>
+            </div>
 
             <!-- Notes -->
             <div class="mb-4">
                 <label class="block text-sm opacity-60 mb-1">Notes</label>
-                <textarea id="modal-notes" rows="4" class="w-full px-3 py-2 rounded-lg modal-input resize-none" placeholder="Add notes..."></textarea>
+                <textarea id="modal-notes" rows="4" class="w-full px-3 py-2 rounded-lg modal-input resize-none" placeholder="No notes yet"></textarea>
             </div>
 
             <!-- Photos -->
             <div class="mb-4">
                 <label class="block text-sm opacity-60 mb-2">Photos</label>
                 <div id="modal-photos" class="grid grid-cols-3 gap-2 mb-2"></div>
-                <label class="inline-flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer modal-upload-btn">
+                <label id="photo-upload-btn" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer modal-upload-btn hidden">
                     <span>+ Add Photo</span>
                     <input type="file" id="photo-input" accept="image/*" class="hidden" onchange="uploadPhoto()">
                 </label>
             </div>
 
-            <!-- Save button -->
-            <button onclick="saveSession()" class="w-full py-3 rounded-lg bg-green-500 text-white font-medium hover:bg-green-600 transition-colors">Save Changes</button>
+            <!-- Save button (admin only) -->
+            <button id="modal-save-btn" onclick="saveSession()" class="w-full py-3 rounded-lg bg-green-500 text-white font-medium hover:bg-green-600 transition-colors hidden">Save Changes</button>
+        </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="login-modal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/50" onclick="closeLoginModal()"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm modal-content rounded-2xl p-6">
+            <button onclick="closeLoginModal()" class="absolute top-4 right-4 text-2xl opacity-50 hover:opacity-100">&times;</button>
+            <h2 class="text-xl font-medium mb-6">Admin Login</h2>
+            <div class="mb-4">
+                <label class="block text-sm opacity-60 mb-1">Username</label>
+                <input type="text" id="login-username" class="w-full px-3 py-2 rounded-lg modal-input">
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm opacity-60 mb-1">Password</label>
+                <input type="password" id="login-password" class="w-full px-3 py-2 rounded-lg modal-input" onkeypress="if(event.key==='Enter')doLogin()">
+            </div>
+            <p id="login-error" class="text-red-500 text-sm mb-4 hidden">Invalid credentials</p>
+            <button onclick="doLogin()" class="w-full py-3 rounded-lg bg-green-500 text-white font-medium hover:bg-green-600 transition-colors">Login</button>
         </div>
     </div>
 
@@ -174,6 +199,68 @@
             localStorage.setItem('theme', isDark ? 'dark' : 'light');
             applyTheme();
         });
+
+        // Auth
+        let isAdmin = false;
+        function checkAuth() {
+            fetch('/api/auth/status/')
+                .then(r => r.json())
+                .then(data => {
+                    isAdmin = data.authenticated;
+                    updateAuthUI();
+                });
+        }
+
+        function updateAuthUI() {
+            const btn = document.getElementById('authButton');
+            btn.textContent = isAdmin ? 'Logout' : 'Login';
+        }
+
+        function openLoginModal() {
+            document.getElementById('login-modal').classList.remove('hidden');
+            document.getElementById('login-error').classList.add('hidden');
+        }
+
+        function closeLoginModal() {
+            document.getElementById('login-modal').classList.add('hidden');
+        }
+
+        function doLogin() {
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+            fetch('/api/auth/login/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            })
+            .then(r => {
+                if (r.ok) {
+                    closeLoginModal();
+                    isAdmin = true;
+                    updateAuthUI();
+                    lastMeetingsHash = null;
+                    loadMeetings();
+                } else {
+                    document.getElementById('login-error').classList.remove('hidden');
+                }
+            });
+        }
+
+        function doLogout() {
+            fetch('/api/auth/logout/').then(() => {
+                isAdmin = false;
+                updateAuthUI();
+                lastMeetingsHash = null;
+                loadMeetings();
+            });
+        }
+
+        document.getElementById('authButton').addEventListener('click', () => {
+            if (isAdmin) doLogout();
+            else openLoginModal();
+        });
+
+        checkAuth();
 
         // Utilities
         function formatTime(isoString) {
@@ -285,9 +372,10 @@
                         sessionsEl.innerHTML = '<p class="opacity-40 text-sm py-4 text-center">No sessions recorded yet</p>';
                     } else {
                         sessionsEl.innerHTML = entries.slice(0, 15).map(e => {
+                            const deleteBtn = isAdmin ? `<button onclick="event.stopPropagation(); deleteSession(${e.id})" class="delete-btn" style="position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 18px; background: none; border: none; cursor: pointer;">&times;</button>` : '';
                             return `<div class="session-card rounded-xl p-4 transition-all cursor-pointer" style="position: relative;" onclick="openSession(${e.id})">
-                                <button onclick="event.stopPropagation(); deleteSession(${e.id})" class="delete-btn" style="position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 18px; background: none; border: none; cursor: pointer;">&times;</button>
-                                <div class="flex justify-between items-center mb-2" style="padding-right: 24px;">
+                                ${deleteBtn}
+                                <div class="flex justify-between items-center mb-2" style="padding-right: ${isAdmin ? '24px' : '0'};">`;
                                     <span class="inline-flex items-center gap-2">
                                         <span class="w-2 h-2 rounded-full bg-green-500"></span>
                                         <span class="font-medium text-green-600 session-text">Past Session</span>
@@ -320,6 +408,20 @@
                     document.getElementById('modal-start').value = data.start.slice(0, 16);
                     document.getElementById('modal-end').value = data.end ? data.end.slice(0, 16) : '';
                     document.getElementById('modal-notes').value = data.notes || '';
+                    document.getElementById('modal-notes').readOnly = !isAdmin;
+
+                    // Show time display for non-admin
+                    const startDate = new Date(data.start);
+                    const endDate = data.end ? new Date(data.end) : null;
+                    document.getElementById('modal-time-display').textContent =
+                        formatDate(data.start) + ' • ' + formatTime(data.start) + (endDate ? ' – ' + formatTime(data.end) : '');
+
+                    // Toggle admin/non-admin elements
+                    document.getElementById('modal-times').classList.toggle('hidden', !isAdmin);
+                    document.getElementById('modal-times-readonly').classList.toggle('hidden', isAdmin);
+                    document.getElementById('modal-save-btn').classList.toggle('hidden', !isAdmin);
+                    document.getElementById('photo-upload-btn').classList.toggle('hidden', !isAdmin);
+
                     renderPhotos(data.photos);
                     document.getElementById('modal').classList.remove('hidden');
                 });
@@ -334,12 +436,13 @@
             if (photos.length === 0) {
                 container.innerHTML = '<p class="col-span-3 text-sm opacity-40">No photos yet</p>';
             } else {
-                container.innerHTML = photos.map(p => `
-                    <div class="relative group">
-                        <img src="${p.url}" class="w-full h-20 object-cover rounded-lg">
-                        <button onclick="deletePhoto(${p.id})" class="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity">&times;</button>
-                    </div>
-                `).join('');
+                container.innerHTML = photos.map(p => {
+                    const deleteBtn = isAdmin ? `<button onclick="deletePhoto(${p.id})" class="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity">&times;</button>` : '';
+                    return `<div class="relative group">
+                        <img src="${p.url}" class="w-full h-20 object-cover rounded-lg cursor-pointer" onclick="window.open('${p.url}', '_blank')">
+                        ${deleteBtn}
+                    </div>`;
+                }).join('');
             }
         }
 
