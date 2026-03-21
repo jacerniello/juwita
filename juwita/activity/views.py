@@ -4,7 +4,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login, logout
 from django.utils import timezone
 from datetime import datetime
-from .models import Log, Meeting, MeetingPhoto
+from .models import Log, Meeting, MeetingPhoto, Tag
 import json
 
 
@@ -103,12 +103,14 @@ def meeting_detail(request, meeting_id):
 
     if request.method == "GET":
         photos = [{"id": p.id, "url": p.image.url} for p in meeting.photos.all()]
+        tags = [{"id": t.id, "name": t.name, "color": t.color} for t in meeting.tags.all()]
         return JsonResponse({
             "id": meeting.id,
             "start": meeting.start_time.isoformat(),
             "end": meeting.end_time.isoformat() if meeting.end_time else None,
             "notes": meeting.notes,
             "photos": photos,
+            "tags": tags,
             "duration_minutes": meeting.duration.total_seconds() / 60
         })
 
@@ -202,3 +204,79 @@ def index(request):
 
 def login_page(request):
     return render(request, 'activity/login.html')
+
+
+def meeting_page(request, meeting_id):
+    return render(request, 'activity/meeting.html', {'meeting_id': meeting_id})
+
+
+def tags_list(request):
+    """List all tags or create a new tag."""
+    if request.method == "GET":
+        tags = [{"id": t.id, "name": t.name, "color": t.color} for t in Tag.objects.all()]
+        return JsonResponse({"tags": tags})
+    return JsonResponse({"error": "Invalid request"}, status=400)
+
+
+@csrf_exempt
+def tags_manage(request):
+    """Create or delete tags."""
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Authentication required"}, status=401)
+
+    if request.method == "POST":
+        data = json.loads(request.body)
+        tag = Tag.objects.create(name=data.get("name"), color=data.get("color", "#6b7280"))
+        return JsonResponse({"success": True, "id": tag.id})
+
+    return JsonResponse({"error": "Invalid request"}, status=400)
+
+
+@csrf_exempt
+def tag_detail(request, tag_id):
+    """Update or delete a tag."""
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Authentication required"}, status=401)
+
+    try:
+        tag = Tag.objects.get(id=tag_id)
+    except Tag.DoesNotExist:
+        return JsonResponse({"error": "Tag not found"}, status=404)
+
+    if request.method == "PATCH":
+        data = json.loads(request.body)
+        if "name" in data:
+            tag.name = data["name"]
+        if "color" in data:
+            tag.color = data["color"]
+        tag.save()
+        return JsonResponse({"success": True})
+
+    elif request.method == "DELETE":
+        tag.delete()
+        return JsonResponse({"success": True})
+
+    return JsonResponse({"error": "Invalid request"}, status=400)
+
+
+@csrf_exempt
+def meeting_tags(request, meeting_id, tag_id):
+    """Add or remove a tag from a meeting."""
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Authentication required"}, status=401)
+
+    try:
+        meeting = Meeting.objects.get(id=meeting_id)
+        tag = Tag.objects.get(id=tag_id)
+    except (Meeting.DoesNotExist, Tag.DoesNotExist):
+        return JsonResponse({"error": "Not found"}, status=404)
+
+    if request.method == "POST":
+        tag.meetings.add(meeting)
+        return JsonResponse({"success": True})
+
+    elif request.method == "DELETE":
+        tag.meetings.remove(meeting)
+        return JsonResponse({"success": True})
+
+    return JsonResponse({"error": "Invalid request"}, status=400)

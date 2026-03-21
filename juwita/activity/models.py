@@ -68,3 +68,12 @@ class MeetingPhoto(models.Model):
 
     def __str__(self):
         return f"Photo for Meeting {self.meeting_id}"
+
+
+class Tag(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+    color = models.CharField(max_length=7, default='#6b7280')  # hex color
+    meetings = models.ManyToManyField(Meeting, related_name='tags', blank=True)
+
+    def __str__(self):
+        return self.name
