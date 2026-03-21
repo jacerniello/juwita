@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Button Logger</title>
+</head>
+<body>
+    <h1>Click the button to log an action</h1>
+    <button id="logButton">Click Me</button>
+
+    <script>
+        const button = document.getElementById('logButton');
+
+        button.addEventListener('click', () => {
+            fetch('/api/log/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'button_clicked' })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('Logged successfully:', data.log_id);
+                }
+            })
+            .catch(err => console.error('Error:', err));
+        });
+    </script>
+</body>
+</html>
