@@ -35,8 +35,33 @@
 
         <!-- Session Log -->
         <div>
-            <p id="session-label" class="text-sm font-medium uppercase tracking-wider mb-4">Past Sessions</p>
-            <div id="sessions" class="space-y-2">
+            <div class="flex items-center justify-between mb-4">
+                <p id="session-label" class="text-sm font-medium uppercase tracking-wider">Past Sessions</p>
+                <button onclick="toggleDateFilter()" class="text-sm opacity-50 hover:opacity-100 transition-opacity">Filter</button>
+            </div>
+            <!-- Date Filter -->
+            <div id="date-filter" class="hidden mb-4 p-3 rounded-xl filter-box">
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                        <label class="block text-xs opacity-50 mb-1">From</label>
+                        <input type="date" id="filter-from" class="w-full px-2 py-1.5 rounded-lg filter-input text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs opacity-50 mb-1">To</label>
+                        <input type="date" id="filter-to" class="w-full px-2 py-1.5 rounded-lg filter-input text-sm">
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="applyFilter()" class="flex-1 py-1.5 rounded-lg text-sm bg-green-500 text-white">Apply</button>
+                    <button onclick="clearFilter()" class="flex-1 py-1.5 rounded-lg text-sm filter-btn">Clear</button>
+                </div>
+            </div>
+            <div id="sessions" class="space-y-2"></div>
+            <div id="load-more" class="hidden text-center py-4">
+                <span class="text-sm opacity-50">Loading more...</span>
+            </div>
+            <div id="no-more" class="hidden text-center py-4">
+                <span class="text-sm opacity-30">No more sessions</span>
             </div>
         </div>
 
@@ -105,6 +130,9 @@
         .light .modal-input { background: white; border: 1px solid #e5e5e5; color: #171717; }
         .light .modal-upload-btn { background: #e5e5e5; }
         .light .modal-upload-btn:hover { background: #d4d4d4; }
+        .light .filter-box { background: #e5e5e5; }
+        .light .filter-input { background: white; border: 1px solid #d4d4d4; color: #171717; }
+        .light .filter-btn { background: #d4d4d4; }
 
         /* Dark mode */
         .dark { background: #0a0a0a; color: #f5f5f5; }
@@ -123,6 +151,9 @@
         .dark .modal-input { background: #262626; border: 1px solid #404040; color: #f5f5f5; }
         .dark .modal-upload-btn { background: #262626; }
         .dark .modal-upload-btn:hover { background: #303030; }
+        .dark .filter-box { background: #262626; }
+        .dark .filter-input { background: #171717; border: 1px solid #404040; color: #f5f5f5; }
+        .dark .filter-btn { background: #404040; }
 
         /* Refresh spin animation */
         @keyframes spin {
@@ -255,6 +286,17 @@
         let lastPing = null;
         let lastMeetingsHash = null;
 
+        // Pagination state
+        let currentOffset = 0;
+        const PAGE_SIZE = 10;
+        let hasMore = true;
+        let isLoading = false;
+        let allLoadedMeetings = [];
+
+        // Filter state
+        let filterFrom = null;
+        let filterTo = null;
+
         function updateCountUp() {
             if (activeSessionStart) {
                 const elapsed = (Date.now() - activeSessionStart) / 1000;
@@ -270,9 +312,41 @@
             setTimeout(() => body.classList.remove('pulse'), 700);
         }
 
-        // Load meetings
-        function loadMeetings() {
-            fetch('/api/meetings/')
+        // Filter functions
+        function toggleDateFilter() {
+            document.getElementById('date-filter').classList.toggle('hidden');
+        }
+
+        function applyFilter() {
+            filterFrom = document.getElementById('filter-from').value || null;
+            filterTo = document.getElementById('filter-to').value || null;
+            resetAndLoadMeetings();
+        }
+
+        function clearFilter() {
+            filterFrom = null;
+            filterTo = null;
+            document.getElementById('filter-from').value = '';
+            document.getElementById('filter-to').value = '';
+            resetAndLoadMeetings();
+        }
+
+        function resetAndLoadMeetings() {
+            currentOffset = 0;
+            hasMore = true;
+            allLoadedMeetings = [];
+            document.getElementById('sessions').innerHTML = '';
+            document.getElementById('no-more').classList.add('hidden');
+            loadMeetings(true);
+        }
+
+        // Load meetings with pagination
+        function loadMeetings(loadSessions = false) {
+            let url = '/api/meetings/?offset=' + currentOffset + '&limit=' + PAGE_SIZE;
+            if (filterFrom) url += '&from=' + filterFrom;
+            if (filterTo) url += '&to=' + filterTo;
+
+            fetch(url)
                 .then(r => r.json())
                 .then(data => {
                     const box = document.getElementById('status-box');
@@ -287,7 +361,6 @@
                         if (!countUpInterval) {
                             countUpInterval = setInterval(updateCountUp, 1000);
                         }
-                        // Check for new ping
                         if (lastPing && data.active_meeting.last_ping !== lastPing) {
                             triggerPulse();
                         }
@@ -303,48 +376,70 @@
                         }
                     }
 
-                    // Only update sessions list if data changed
-                    const meetingsHash = JSON.stringify(data.meetings.map(m => m.id));
-                    if (meetingsHash === lastMeetingsHash) return;
-                    lastMeetingsHash = meetingsHash;
+                    // Only update sessions if explicitly loading or first load
+                    if (loadSessions || currentOffset === 0) {
+                        hasMore = data.has_more;
+                        document.getElementById('no-more').classList.toggle('hidden', hasMore || data.meetings.length === 0);
 
-                    const sessionsEl = document.getElementById('sessions');
-                    let entries = [];
+                        if (currentOffset === 0 && data.meetings.length === 0) {
+                            document.getElementById('sessions').innerHTML = '<p class="opacity-40 text-sm py-4 text-center">No sessions recorded yet</p>';
+                            return;
+                        }
 
-                    data.meetings.forEach(m => {
-                        entries.push({
-                            id: m.id,
-                            type: 'session',
-                            start: new Date(m.start),
-                            end: new Date(m.end),
-                            duration: m.duration_minutes
+                        data.meetings.forEach(m => {
+                            if (!allLoadedMeetings.find(x => x.id === m.id)) {
+                                allLoadedMeetings.push({
+                                    id: m.id,
+                                    start: new Date(m.start),
+                                    end: new Date(m.end),
+                                    duration: m.duration_minutes
+                                });
+                            }
                         });
-                    });
 
-                    entries.sort((a, b) => b.start - a.start);
-
-                    if (entries.length === 0) {
-                        sessionsEl.innerHTML = '<p class="opacity-40 text-sm py-4 text-center">No sessions recorded yet</p>';
-                    } else {
-                        sessionsEl.innerHTML = entries.slice(0, 15).map(e => {
-                            const deleteBtn = isAdmin ? `<button onclick="event.stopPropagation(); deleteSession(${e.id})" class="delete-btn" style="position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 18px; background: none; border: none; cursor: pointer;">&times;</button>` : '';
-                            return `<div class="session-card rounded-xl p-4 transition-all cursor-pointer" style="position: relative;" onclick="window.location.href='/meetings/${e.id}/'">
-                                ${deleteBtn}
-                                <div class="flex justify-between items-center mb-2" style="padding-right: ${isAdmin ? '24px' : '0'};">
-                                    <span class="inline-flex items-center gap-2">
-                                        <span class="w-2 h-2 rounded-full bg-green-500"></span>
-                                        <span class="font-medium text-green-600 session-text">Past Session</span>
-                                    </span>
-                                    <span class="text-sm font-medium opacity-60">${formatDuration(e.duration)}</span>
-                                </div>
-                                <div class="text-sm opacity-50 session-time">
-                                    ${formatDate(e.start.toISOString())} &bull; ${formatTime(e.start.toISOString())} – ${formatTime(e.end.toISOString())}
-                                </div>
-                            </div>`;
-                        }).join('');
+                        renderSessions();
                     }
                 });
         }
+
+        function renderSessions() {
+            const sessionsEl = document.getElementById('sessions');
+            sessionsEl.innerHTML = allLoadedMeetings.map(e => {
+                const deleteBtn = isAdmin ? `<button onclick="event.stopPropagation(); deleteSession(${e.id})" class="delete-btn" style="position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 18px; background: none; border: none; cursor: pointer;">&times;</button>` : '';
+                return `<div class="session-card rounded-xl p-4 transition-all cursor-pointer" style="position: relative;" onclick="window.location.href='/meetings/${e.id}/'">
+                    ${deleteBtn}
+                    <div class="flex justify-between items-center mb-2" style="padding-right: ${isAdmin ? '24px' : '0'};">
+                        <span class="inline-flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                            <span class="font-medium text-green-600 session-text">Past Session</span>
+                        </span>
+                        <span class="text-sm font-medium opacity-60">${formatDuration(e.duration)}</span>
+                    </div>
+                    <div class="text-sm opacity-50 session-time">
+                        ${formatDate(e.start.toISOString())} &bull; ${formatTime(e.start.toISOString())} – ${formatTime(e.end.toISOString())}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function loadMoreSessions() {
+            if (isLoading || !hasMore) return;
+            isLoading = true;
+            document.getElementById('load-more').classList.remove('hidden');
+            currentOffset += PAGE_SIZE;
+            loadMeetings(true);
+            setTimeout(() => {
+                isLoading = false;
+                document.getElementById('load-more').classList.add('hidden');
+            }, 500);
+        }
+
+        // Infinite scroll
+        window.addEventListener('scroll', () => {
+            if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 200) {
+                loadMoreSessions();
+            }
+        });
 
         function deleteSession(id) {
             fetch('/api/meetings/' + id + '/', { method: 'DELETE' })
@@ -447,8 +542,8 @@
             loadMeetings();
         });
 
-        loadMeetings();
-        setInterval(loadMeetings, 500);
+        loadMeetings(true);
+        setInterval(() => loadMeetings(false), 500);
     </script>
 </body>
 </html>

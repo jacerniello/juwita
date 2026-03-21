@@ -62,7 +62,7 @@ def ping(request):
 
 
 def meetings(request):
-    """Return all meetings with their status."""
+    """Return all meetings with their status. Supports pagination and date filtering."""
     now = timezone.now()
 
     # Close any stale meetings
@@ -78,8 +78,30 @@ def meetings(request):
     # Get active meeting
     active = Meeting.objects.filter(end_time__isnull=True).first()
 
+    # Pagination params
+    offset = int(request.GET.get('offset', 0))
+    limit = int(request.GET.get('limit', 10))
+
+    # Date filtering params
+    date_from = request.GET.get('from')  # ISO format: 2024-01-15
+    date_to = request.GET.get('to')  # ISO format: 2024-01-20
+
     # Get completed meetings
-    completed = Meeting.objects.filter(end_time__isnull=False).order_by('-start_time')[:20]
+    all_completed = Meeting.objects.filter(end_time__isnull=False)
+
+    # Apply date filters
+    if date_from:
+        from_date = datetime.fromisoformat(date_from)
+        all_completed = all_completed.filter(start_time__gte=from_date)
+    if date_to:
+        to_date = datetime.fromisoformat(date_to)
+        # Add a day to include the entire end date
+        to_date = to_date.replace(hour=23, minute=59, second=59)
+        all_completed = all_completed.filter(start_time__lte=to_date)
+
+    all_completed = all_completed.order_by('-start_time')
+    total_count = all_completed.count()
+    completed = all_completed[offset:offset + limit]
 
     result = {
         "active_meeting": {
@@ -96,7 +118,11 @@ def meetings(request):
                 "duration_minutes": m.duration.total_seconds() / 60
             }
             for m in completed
-        ]
+        ],
+        "total": total_count,
+        "offset": offset,
+        "limit": limit,
+        "has_more": offset + limit < total_count
     }
 
     return JsonResponse(result)
