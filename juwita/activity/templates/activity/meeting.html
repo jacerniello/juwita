@@ -47,10 +47,30 @@
             <div class="mb-6">
                 <p class="text-sm opacity-60 mb-2">Tags</p>
                 <div id="tags" class="flex flex-wrap gap-2 mb-2"></div>
-                <div id="add-tag-container" class="hidden">
+                <div id="add-tag-container" class="hidden flex gap-2 items-center flex-wrap">
                     <select id="tag-select" class="px-3 py-2 rounded-lg tag-input text-sm">
                         <option value="">Add tag...</option>
                     </select>
+                    <button onclick="openCreateTag()" class="px-3 py-2 rounded-lg text-sm upload-btn">+ New Tag</button>
+                </div>
+                <!-- Create tag modal -->
+                <div id="create-tag-modal" class="hidden fixed inset-0 z-50">
+                    <div class="absolute inset-0 bg-black/50" onclick="closeCreateTag()"></div>
+                    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm p-6 rounded-2xl tag-modal">
+                        <h3 class="text-lg font-medium mb-4">Create New Tag</h3>
+                        <div class="mb-3">
+                            <label class="block text-sm opacity-60 mb-1">Tag Name</label>
+                            <input type="text" id="new-tag-name" class="w-full px-3 py-2 rounded-lg tag-input">
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm opacity-60 mb-1">Color</label>
+                            <input type="color" id="new-tag-color" value="#6b7280" class="w-full h-10 rounded-lg cursor-pointer">
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="closeCreateTag()" class="flex-1 py-2 rounded-lg upload-btn">Cancel</button>
+                            <button onclick="createTag()" class="flex-1 py-2 rounded-lg bg-green-500 text-white">Create</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -80,8 +100,8 @@
                 <p class="text-sm opacity-60 mb-2">Photos</p>
                 <div id="photos" class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3"></div>
                 <label id="upload-btn" class="hidden inline-flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer upload-btn">
-                    <span>+ Add Photo</span>
-                    <input type="file" id="photo-input" accept="image/*" class="hidden" onchange="uploadPhoto()">
+                    <span>+ Add Photos</span>
+                    <input type="file" id="photo-input" accept="image/*" multiple class="hidden" onchange="uploadPhotos()">
                 </label>
             </div>
 
@@ -107,6 +127,7 @@
         .light .upload-btn { background: #e5e5e5; }
         .light .upload-btn:hover { background: #d4d4d4; }
         .light .photo-card { background: #e5e5e5; }
+        .light .tag-modal { background: #f5f5f5; }
 
         /* Dark mode */
         .dark { background: #0a0a0a; color: #f5f5f5; }
@@ -118,6 +139,7 @@
         .dark .upload-btn { background: #262626; }
         .dark .upload-btn:hover { background: #404040; }
         .dark .photo-card { background: #262626; }
+        .dark .tag-modal { background: #171717; }
     </style>
 
     <script>
@@ -281,17 +303,51 @@
             document.getElementById('lightbox').classList.add('hidden');
         }
 
-        function uploadPhoto() {
+        function uploadPhotos() {
             const input = document.getElementById('photo-input');
-            const file = input.files[0];
-            if (!file) return;
-            const formData = new FormData();
-            formData.append('photo', file);
-            fetch('/api/meetings/' + meetingId + '/photos/', { method: 'POST', body: formData })
-                .then(() => {
-                    input.value = '';
-                    loadMeeting();
-                });
+            const files = input.files;
+            if (!files.length) return;
+
+            const uploads = Array.from(files).map(file => {
+                const formData = new FormData();
+                formData.append('photo', file);
+                return fetch('/api/meetings/' + meetingId + '/photos/', { method: 'POST', body: formData });
+            });
+
+            Promise.all(uploads).then(() => {
+                input.value = '';
+                loadMeeting();
+            });
+        }
+
+        // Tag creation modal
+        function openCreateTag() {
+            document.getElementById('create-tag-modal').classList.remove('hidden');
+            document.getElementById('new-tag-name').value = '';
+            document.getElementById('new-tag-color').value = '#6b7280';
+        }
+
+        function closeCreateTag() {
+            document.getElementById('create-tag-modal').classList.add('hidden');
+        }
+
+        function createTag() {
+            const name = document.getElementById('new-tag-name').value.trim();
+            const color = document.getElementById('new-tag-color').value;
+            if (!name) return;
+
+            fetch('/api/tags/manage/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, color })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    closeCreateTag();
+                    loadAllTags();
+                }
+            });
         }
 
         function deletePhoto(photoId) {
