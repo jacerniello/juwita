@@ -257,7 +257,7 @@
 
         document.getElementById('authButton').addEventListener('click', () => {
             if (isAdmin) doLogout();
-            else openLoginModal();
+            else window.location.href = '/admin/';
         });
 
         checkAuth();
