@@ -115,7 +115,8 @@ def meetings(request):
                 "id": m.id,
                 "start": m.start_time.isoformat(),
                 "end": m.end_time.isoformat(),
-                "duration_minutes": m.duration.total_seconds() / 60
+                "duration_minutes": m.duration.total_seconds() / 60,
+                "tags": [{"id": t.id, "name": t.name, "color": t.color} for t in m.tags.all()]
             }
             for m in completed
         ],

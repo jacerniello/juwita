@@ -37,7 +37,10 @@
         <div>
             <div class="flex items-center justify-between mb-4">
                 <p id="session-label" class="text-sm font-medium uppercase tracking-wider">Past Sessions</p>
-                <button onclick="toggleDateFilter()" class="text-sm opacity-50 hover:opacity-100 transition-opacity">Filter</button>
+                <div class="flex items-center gap-3">
+                    <button id="tag-settings-btn" onclick="openTagModal()" class="hidden text-sm opacity-50 hover:opacity-100 transition-opacity">⚙ Tags</button>
+                    <button onclick="toggleDateFilter()" class="text-sm opacity-50 hover:opacity-100 transition-opacity">Filter</button>
+                </div>
             </div>
             <!-- Date Filter -->
             <div id="date-filter" class="hidden mb-4 p-3 rounded-xl filter-box">
@@ -65,6 +68,30 @@
             </div>
         </div>
 
+    </div>
+
+    <!-- Tag Context Menu -->
+    <div id="tag-menu" class="fixed hidden z-50 py-2 rounded-xl shadow-lg context-menu" style="min-width: 150px;">
+        <div id="tag-menu-items"></div>
+        <div id="tag-menu-empty" class="px-4 py-2 text-sm opacity-50">No tags available</div>
+    </div>
+
+    <!-- Tag Management Modal -->
+    <div id="tag-modal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/50" onclick="closeTagModal()"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md p-6 rounded-2xl modal-content">
+            <button onclick="closeTagModal()" class="absolute top-4 right-4 text-2xl opacity-50 hover:opacity-100">&times;</button>
+            <h2 class="text-xl font-medium mb-4">Manage Tags</h2>
+            <div id="tag-list" class="space-y-2 mb-4 max-h-64 overflow-y-auto"></div>
+            <div class="border-t border-gray-600 pt-4">
+                <p class="text-sm opacity-60 mb-2">Create New Tag</p>
+                <div class="flex gap-2">
+                    <input type="text" id="new-tag-name" class="flex-1 px-3 py-2 rounded-lg modal-input" placeholder="Tag name">
+                    <input type="color" id="new-tag-color" value="#22c55e" class="w-12 h-10 rounded-lg cursor-pointer">
+                    <button onclick="createNewTag()" class="px-4 py-2 rounded-lg bg-green-500 text-white">Add</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Session Detail Modal -->
@@ -133,6 +160,9 @@
         .light .filter-box { background: #e5e5e5; }
         .light .filter-input { background: white; border: 1px solid #d4d4d4; color: #171717; }
         .light .filter-btn { background: #d4d4d4; }
+        .light .context-menu { background: #f5f5f5; border: 1px solid #d4d4d4; }
+        .light .context-menu-item { color: #171717; }
+        .light .context-menu-item:hover { background: #e5e5e5; }
 
         /* Dark mode */
         .dark { background: #0a0a0a; color: #f5f5f5; }
@@ -154,6 +184,9 @@
         .dark .filter-box { background: #262626; }
         .dark .filter-input { background: #171717; border: 1px solid #404040; color: #f5f5f5; }
         .dark .filter-btn { background: #404040; }
+        .dark .context-menu { background: #1a1a1a; border: 1px solid #404040; }
+        .dark .context-menu-item { color: #f5f5f5; }
+        .dark .context-menu-item:hover { background: #333; }
 
         /* Refresh spin animation */
         @keyframes spin {
@@ -230,6 +263,7 @@
         function updateAuthUI() {
             const btn = document.getElementById('authButton');
             btn.textContent = isAdmin ? 'Logout' : 'Login';
+            document.getElementById('tag-settings-btn').classList.toggle('hidden', !isAdmin);
         }
 
         function doLogout() {
@@ -387,12 +421,16 @@
                         }
 
                         data.meetings.forEach(m => {
-                            if (!allLoadedMeetings.find(x => x.id === m.id)) {
+                            const existing = allLoadedMeetings.find(x => x.id === m.id);
+                            if (existing) {
+                                existing.tags = m.tags || [];
+                            } else {
                                 allLoadedMeetings.push({
                                     id: m.id,
                                     start: new Date(m.start),
                                     end: new Date(m.end),
-                                    duration: m.duration_minutes
+                                    duration: m.duration_minutes,
+                                    tags: m.tags || []
                                 });
                             }
                         });
@@ -406,7 +444,8 @@
             const sessionsEl = document.getElementById('sessions');
             sessionsEl.innerHTML = allLoadedMeetings.map(e => {
                 const deleteBtn = isAdmin ? `<button onclick="event.stopPropagation(); deleteSession(${e.id})" class="delete-btn" style="position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 18px; background: none; border: none; cursor: pointer;">&times;</button>` : '';
-                return `<div class="session-card rounded-xl p-4 transition-all cursor-pointer" style="position: relative;" onclick="window.location.href='/meetings/${e.id}/'">
+                const tagsHtml = e.tags && e.tags.length > 0 ? `<div class="flex flex-wrap gap-1 mt-2">${e.tags.map(t => `<span class="text-xs px-2 py-0.5 rounded-full text-white" style="background:${t.color}">${t.name}</span>`).join('')}</div>` : '';
+                return `<div class="session-card rounded-xl p-4 transition-all cursor-pointer" style="position: relative;" onclick="window.location.href='/meetings/${e.id}/'" oncontextmenu="showTagMenu(event, ${e.id})">
                     ${deleteBtn}
                     <div class="flex justify-between items-center mb-2" style="padding-right: ${isAdmin ? '24px' : '0'};">
                         <span class="inline-flex items-center gap-2">
@@ -418,6 +457,7 @@
                     <div class="text-sm opacity-50 session-time">
                         ${formatDate(e.start.toISOString())} &bull; ${formatTime(e.start.toISOString())} – ${formatTime(e.end.toISOString())}
                     </div>
+                    ${tagsHtml}
                 </div>`;
             }).join('');
         }
@@ -544,6 +584,130 @@
 
         loadMeetings(true);
         setInterval(() => loadMeetings(false), 500);
+
+        // Tags context menu
+        let allTags = [];
+        let contextMeetingId = null;
+
+        function loadTags() {
+            fetch('/api/tags/')
+                .then(r => r.json())
+                .then(data => {
+                    allTags = data.tags || [];
+                    renderTagMenu();
+                });
+        }
+
+        function renderTagMenu() {
+            const itemsEl = document.getElementById('tag-menu-items');
+            const emptyEl = document.getElementById('tag-menu-empty');
+
+            if (allTags.length === 0) {
+                itemsEl.innerHTML = '';
+                emptyEl.classList.remove('hidden');
+            } else {
+                emptyEl.classList.add('hidden');
+                itemsEl.innerHTML = allTags.map(t => `
+                    <div class="context-menu-item px-4 py-2 cursor-pointer flex items-center gap-2" onclick="addTagToMeeting(${t.id})">
+                        <span class="w-3 h-3 rounded-full" style="background:${t.color}"></span>
+                        <span class="text-sm">${t.name}</span>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function showTagMenu(e, meetingId) {
+            if (!isAdmin) return;
+            e.preventDefault();
+            contextMeetingId = meetingId;
+
+            const menu = document.getElementById('tag-menu');
+            menu.style.left = e.pageX + 'px';
+            menu.style.top = e.pageY + 'px';
+            menu.classList.remove('hidden');
+        }
+
+        function hideTagMenu() {
+            document.getElementById('tag-menu').classList.add('hidden');
+            contextMeetingId = null;
+        }
+
+        function addTagToMeeting(tagId) {
+            if (!contextMeetingId) return;
+            fetch('/api/meetings/' + contextMeetingId + '/tags/' + tagId + '/', { method: 'POST' })
+                .then(() => {
+                    hideTagMenu();
+                });
+        }
+
+        // Hide menu on click elsewhere
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#tag-menu')) {
+                hideTagMenu();
+            }
+        });
+
+        loadTags();
+
+        // Tag management modal
+        function openTagModal() {
+            renderTagList();
+            document.getElementById('tag-modal').classList.remove('hidden');
+        }
+
+        function closeTagModal() {
+            document.getElementById('tag-modal').classList.add('hidden');
+        }
+
+        function renderTagList() {
+            const listEl = document.getElementById('tag-list');
+            if (allTags.length === 0) {
+                listEl.innerHTML = '<p class="text-sm opacity-50">No tags yet</p>';
+            } else {
+                listEl.innerHTML = allTags.map(t => `
+                    <div class="flex items-center gap-3 p-2 rounded-lg" style="background: rgba(255,255,255,0.05)">
+                        <input type="color" value="${t.color}" onchange="updateTagColor(${t.id}, this.value)" class="w-8 h-8 rounded cursor-pointer">
+                        <span class="flex-1 text-sm">${t.name}</span>
+                        <button onclick="deleteTag(${t.id})" class="text-red-500 hover:text-red-400 text-sm">Delete</button>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function createNewTag() {
+            const name = document.getElementById('new-tag-name').value.trim();
+            const color = document.getElementById('new-tag-color').value;
+            if (!name) return;
+
+            fetch('/api/tags/manage/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, color })
+            })
+            .then(r => r.json())
+            .then(() => {
+                document.getElementById('new-tag-name').value = '';
+                loadTags();
+                renderTagList();
+            });
+        }
+
+        function updateTagColor(tagId, color) {
+            fetch('/api/tags/' + tagId + '/', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ color })
+            })
+            .then(() => loadTags());
+        }
+
+        function deleteTag(tagId) {
+            fetch('/api/tags/' + tagId + '/', { method: 'DELETE' })
+            .then(() => {
+                loadTags();
+                renderTagList();
+            });
+        }
     </script>
 </body>
 </html>

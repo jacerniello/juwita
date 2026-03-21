@@ -419,7 +419,7 @@
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
-            }).then(() => loadMeeting());
+            }).then(() => window.location.href = '/');
         }
 
         // Init
