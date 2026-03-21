@@ -67,6 +67,15 @@
         .dark .session-time { color: #a3a3a3 !important; }
         .dark .ping-btn { background: #262626; }
         .dark .ping-btn:hover { background: #404040; }
+
+        /* Refresh spin animation */
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .spinning {
+            animation: spin 0.5s ease-in-out;
+        }
     </style>
 
     <script>
@@ -110,6 +119,26 @@
             return h + 'h ' + m + 'm';
         }
 
+        function formatCountUp(seconds) {
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = Math.floor(seconds % 60);
+            if (h > 0) return `${h}h ${m}m ${s}s`;
+            if (m > 0) return `${m}m ${s}s`;
+            return `${s}s`;
+        }
+
+        // Active session tracking
+        let activeSessionStart = null;
+        let countUpInterval = null;
+
+        function updateCountUp() {
+            if (activeSessionStart) {
+                const elapsed = (Date.now() - activeSessionStart) / 1000;
+                document.getElementById('status-detail').textContent = 'Started: ' + formatCountUp(elapsed);
+            }
+        }
+
         // Load meetings
         function loadMeetings() {
             fetch('/api/meetings/')
@@ -122,11 +151,20 @@
                     if (data.active_meeting) {
                         box.className = 'rounded-2xl p-8 mb-8 text-center transition-all duration-500 bg-green-500';
                         text.textContent = 'IN SESSION';
-                        detail.textContent = formatDuration(data.active_meeting.duration_minutes);
+                        activeSessionStart = new Date(data.active_meeting.start).getTime();
+                        updateCountUp();
+                        if (!countUpInterval) {
+                            countUpInterval = setInterval(updateCountUp, 1000);
+                        }
                     } else {
                         box.className = 'rounded-2xl p-8 mb-8 text-center transition-all duration-500 bg-red-500';
                         text.textContent = 'NOT IN SESSION';
                         detail.textContent = 'Waiting for activity...';
+                        activeSessionStart = null;
+                        if (countUpInterval) {
+                            clearInterval(countUpInterval);
+                            countUpInterval = null;
+                        }
                     }
 
                     const sessionsEl = document.getElementById('sessions');
@@ -167,7 +205,12 @@
         document.getElementById('pingButton').addEventListener('click', () => {
             fetch('/api/ping').then(() => loadMeetings());
         });
-        document.getElementById('refreshButton').addEventListener('click', loadMeetings);
+        document.getElementById('refreshButton').addEventListener('click', () => {
+            const btn = document.getElementById('refreshButton');
+            btn.classList.add('spinning');
+            setTimeout(() => btn.classList.remove('spinning'), 500);
+            loadMeetings();
+        });
 
         loadMeetings();
         setInterval(loadMeetings, 3000);
