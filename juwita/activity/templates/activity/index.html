@@ -39,10 +39,6 @@
             </div>
         </div>
 
-        <!-- Test Ping Button -->
-        <div class="fixed bottom-6 right-6">
-            <button id="pingButton" class="w-12 h-12 rounded-full text-white text-xl transition-all shadow-lg ping-btn">+</button>
-        </div>
     </div>
 
     <style>
@@ -53,8 +49,6 @@
         .light .session-card { background: #e5e5e5; border: 1px solid #d4d4d4; }
         .light .session-card:hover { background: #d4d4d4; }
         .light #session-label { color: #737373; }
-        .light .ping-btn { background: #262626; }
-        .light .ping-btn:hover { background: #404040; }
         .light .delete-btn { color: #737373; }
         .light .delete-btn:hover { color: #dc2626; }
 
@@ -65,10 +59,8 @@
         .dark .session-card { background: #262626; border: 1px solid #404040; }
         .dark .session-card:hover { background: #303030; }
         .dark #session-label { color: #737373; }
-        .dark .session-text { color: #a3a3a3 !important; }
-        .dark .session-time { color: #a3a3a3 !important; }
-        .dark .ping-btn { background: #262626; }
-        .dark .ping-btn:hover { background: #404040; }
+        .dark .session-text { color: #d4d4d4 !important; }
+        .dark .session-time { color: #d4d4d4 !important; }
         .dark .delete-btn { color: #737373; }
         .dark .delete-btn:hover { color: #dc2626; }
 
@@ -266,9 +258,6 @@
                 .then(() => loadMeetings());
         }
 
-        document.getElementById('pingButton').addEventListener('click', () => {
-            fetch('/api/ping').then(() => loadMeetings());
-        });
         document.getElementById('refreshButton').addEventListener('click', () => {
             const btn = document.getElementById('refreshButton');
             btn.classList.add('spinning');
