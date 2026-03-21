@@ -81,12 +81,8 @@
             animation: spin 0.5s ease-in-out;
         }
 
-        /* Ping pulse animation - shimmer wave */
-        #status-box {
-            position: relative;
-            overflow: hidden;
-        }
-        @keyframes shimmer-wave {
+        /* Ping pulse animation - full page wave */
+        @keyframes page-wave {
             0% {
                 transform: translateX(-100%) skewX(-15deg);
             }
@@ -94,38 +90,28 @@
                 transform: translateX(200%) skewX(-15deg);
             }
         }
-        @keyframes ripple-out {
-            0% {
-                transform: scale(0.8);
-                opacity: 0.6;
-            }
-            100% {
-                transform: scale(1.3);
-                opacity: 0;
-            }
+        #body {
+            position: relative;
+            overflow-x: hidden;
         }
         .pulse::before {
             content: '';
-            position: absolute;
+            position: fixed;
             top: 0;
             left: 0;
-            width: 50%;
-            height: 100%;
+            width: 40%;
+            height: 100vh;
             background: linear-gradient(
                 90deg,
                 transparent,
-                rgba(255, 255, 255, 0.4),
+                rgba(34, 197, 94, 0.15),
+                rgba(34, 197, 94, 0.25),
+                rgba(34, 197, 94, 0.15),
                 transparent
             );
-            animation: shimmer-wave 0.6s ease-out forwards;
-        }
-        .pulse::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            border-radius: 1rem;
-            border: 2px solid rgba(255, 255, 255, 0.5);
-            animation: ripple-out 0.5s ease-out forwards;
+            animation: page-wave 0.7s ease-out forwards;
+            pointer-events: none;
+            z-index: 100;
         }
     </style>
 
@@ -193,11 +179,11 @@
         }
 
         function triggerPulse() {
-            const box = document.getElementById('status-box');
-            box.classList.remove('pulse');
-            void box.offsetWidth; // Force reflow to restart animation
-            box.classList.add('pulse');
-            setTimeout(() => box.classList.remove('pulse'), 400);
+            const body = document.getElementById('body');
+            body.classList.remove('pulse');
+            void body.offsetWidth; // Force reflow to restart animation
+            body.classList.add('pulse');
+            setTimeout(() => body.classList.remove('pulse'), 700);
         }
 
         // Load meetings
