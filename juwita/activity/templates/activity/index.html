@@ -255,8 +255,13 @@
             fetch('/api/auth/status/')
                 .then(r => r.json())
                 .then(data => {
+                    const wasAdmin = isAdmin;
                     isAdmin = data.authenticated;
                     updateAuthUI();
+                    // Re-render sessions if admin status changed
+                    if (wasAdmin !== isAdmin && allLoadedMeetings.length > 0) {
+                        renderSessions();
+                    }
                 });
         }
 
@@ -319,6 +324,7 @@
         let countUpInterval = null;
         let lastPing = null;
         let lastMeetingsHash = null;
+        let wasActiveSession = false;
 
         // Pagination state
         let currentOffset = 0;
@@ -387,6 +393,8 @@
                     const text = document.getElementById('status-text');
                     const detail = document.getElementById('status-detail');
 
+                    const isActiveNow = !!data.active_meeting;
+
                     if (data.active_meeting) {
                         box.className = 'rounded-2xl p-8 mb-8 text-center transition-all duration-500 bg-green-500';
                         text.textContent = 'IN SESSION';
@@ -409,6 +417,12 @@
                             countUpInterval = null;
                         }
                     }
+
+                    // Refresh sessions when session ends (was active, now not active)
+                    if (wasActiveSession && !isActiveNow) {
+                        resetAndLoadMeetings();
+                    }
+                    wasActiveSession = isActiveNow;
 
                     // Only update sessions if explicitly requested
                     if (loadSessions) {
