@@ -410,8 +410,8 @@
                         }
                     }
 
-                    // Only update sessions if explicitly loading or first load
-                    if (loadSessions || currentOffset === 0) {
+                    // Only update sessions if explicitly requested
+                    if (loadSessions) {
                         hasMore = data.has_more;
                         document.getElementById('no-more').classList.toggle('hidden', hasMore || data.meetings.length === 0);
 
