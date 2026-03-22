@@ -7,79 +7,107 @@ const char* ssid =
 const char* password = 
 
 // --- SERVER SETTINGS ---
-const char* serverName = 
+// We use a "Base" URL so we can append the voltage data dynamically
+const char* serverNameBase = 
 
 const int potPin = 26; // GP26 / ADC0
 
 void setup() {
   Serial.begin(115200);
-  delay(2000); 
+  delay(3000); // Give the system a "Cosmic Moment" to stabilize power
 
-  // Force-reset the Wi-Fi radio to prevent the "infinite dots" stall
+  Serial.println("\n--- SYSTEM ONLINE ---");
+  Serial.println("Initializing WiFi Radio...");
+  
   WiFi.mode(WIFI_STA);
-  WiFi.disconnect();
-  delay(1000);
-
-  Serial.print("Connecting to WiFi: ");
-  Serial.println(ssid);
+  WiFi.disconnect(); 
+  delay(2000); 
 
   WiFi.begin(ssid, password);
   
-  // Try to connect
+  Serial.print("Connecting to: ");
+  Serial.println(ssid);
+
+  // Initial connection loop
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
-  
-  Serial.println("\nSUCCESS! Connected.");
+
+  Serial.println("\nSUCCESS! Handshake Complete.");
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
 }
 
 void loop() {
-  // Read sensor
+  // --- ROBUST AUTO-RECOVERY ---
+  // If the connection drops (e.g., you walk away with your phone), 
+  // this block takes over until the "Handshake" is restored.
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("\n[Network Lost] Deep cycling radio for reconnection...");
+    
+    while (WiFi.status() != WL_CONNECTED) {
+      WiFi.disconnect();
+      delay(3000); // 3-second "Breather" to clear ghost sessions on the phone
+      WiFi.begin(ssid, password);
+      
+      int timeout = 0;
+      // Wait up to 10 seconds per attempt
+      while (WiFi.status() != WL_CONNECTED && timeout < 20) {
+        delay(500);
+        Serial.print(".");
+        timeout++;
+      }
+
+      if (WiFi.status() != WL_CONNECTED) {
+        Serial.println("\n[Retry Failed] Retrying in 5 seconds...");
+        delay(5000); 
+      }
+    }
+    Serial.println("\n[Healed] Connection restored.");
+  }
+
+  // --- SENSOR DATA ACQUISITION ---
   int raw = analogRead(potPin);
   float voltage = (raw * 3.3) / 4095.0;
 
   // --- TRIGGER LOGIC (Over 0.5V) ---
   if (voltage > 0.5) {
-    if (WiFi.status() == WL_CONNECTED) {
-      WiFiClientSecure client;
-      client.setInsecure(); // Bypass SSL certificate check for hackathon speed
+    WiFiClientSecure client;
+    client.setInsecure(); // Bypass SSL for hackathon speed/simplicity
+    HTTPClient http;
+    
+    // THE UPGRADE: Appending the voltage value to the URL string
+    // This turns the ping into: ...ping?key=XXX&v=0.72
+    String fullURL = String(serverNameBase) + "&v=" + String(voltage, 2);
+    
+    Serial.print(">>> THRESHOLD MET: ");
+    Serial.print(voltage);
+    Serial.println("V. Pinging Server...");
 
-      HTTPClient http;
+    if (http.begin(client, fullURL)) { 
+      int httpResponseCode = http.GET();
       
-      Serial.print(">>> THRESHOLD MET: ");
-      Serial.print(voltage);
-      Serial.println("V. Pinging Server...");
-
-      if (http.begin(client, serverName)) { 
-        int httpResponseCode = http.GET();
-        
-        if (httpResponseCode > 0) {
-          Serial.print("SERVER RESPONDED: ");
-          Serial.println(httpResponseCode);
-        } else {
-          Serial.print("HTTP ERROR: ");
-          Serial.println(http.errorToString(httpResponseCode).c_str());
-        }
-        http.end();
+      if (httpResponseCode > 0) {
+        Serial.print("SERVER RESPONDED: ");
+        Serial.println(httpResponseCode);
+      } else {
+        Serial.print("HTTP ERROR: ");
+        Serial.println(http.errorToString(httpResponseCode).c_str());
       }
-      
-      Serial.println("Cooldown: 5 seconds...");
-      delay(5000); 
-    } else {
-      Serial.println("WiFi Lost! Reconnecting...");
-      WiFi.begin(ssid, password);
+      http.end();
     }
+    
+    Serial.println("Cooldown: 5 seconds...");
+    delay(5000); 
   } 
   // --- IDLE LOGIC (Under 0.5V) ---
   else {
-    Serial.print("Volts: "); 
+    Serial.print("Status: Idle | Volts: "); 
     Serial.print(voltage);
-    Serial.println(" | No Ping");
+    Serial.println(" | No Ping sent.");
     
-    // 10 second delay for idle monitoring as requested
+    // 10 second delay for idle monitoring
     delay(5000); 
   }
 }
