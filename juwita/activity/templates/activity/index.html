@@ -76,6 +76,27 @@
         <div id="tag-menu-empty" class="px-4 py-2 text-sm opacity-50">No tags available</div>
     </div>
 
+    <!-- Edit Time Modal -->
+    <div id="edit-time-modal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/50" onclick="closeEditTimeModal()"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm p-6 rounded-2xl modal-content">
+            <button onclick="closeEditTimeModal()" class="absolute top-4 right-4 text-2xl opacity-50 hover:opacity-100">&times;</button>
+            <h2 class="text-lg font-medium mb-4">Edit Session Time</h2>
+            <input type="hidden" id="edit-time-meeting-id">
+            <div class="space-y-3 mb-4">
+                <div>
+                    <label class="block text-sm opacity-60 mb-1">Start</label>
+                    <input type="datetime-local" id="edit-time-start" class="w-full px-3 py-2 rounded-lg modal-input">
+                </div>
+                <div>
+                    <label class="block text-sm opacity-60 mb-1">End</label>
+                    <input type="datetime-local" id="edit-time-end" class="w-full px-3 py-2 rounded-lg modal-input">
+                </div>
+            </div>
+            <button onclick="saveEditTime()" class="w-full py-2 rounded-lg bg-green-500 text-white font-medium hover:bg-green-600 transition-colors">Save</button>
+        </div>
+    </div>
+
     <!-- Tag Management Modal -->
     <div id="tag-modal" class="fixed inset-0 z-50 hidden">
         <div class="absolute inset-0 bg-black/50" onclick="closeTagModal()"></div>
@@ -457,9 +478,11 @@
         function renderSessions() {
             const sessionsEl = document.getElementById('sessions');
             sessionsEl.innerHTML = allLoadedMeetings.map(e => {
+                const editBtn = isAdmin ? `<button onclick="event.stopPropagation(); openEditTimeModal(${e.id}, '${e.start.toISOString()}', '${e.end.toISOString()}')" class="edit-btn" style="position: absolute; top: 8px; right: 36px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 14px; background: none; border: none; cursor: pointer; opacity: 0.5;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5">✎</button>` : '';
                 const deleteBtn = isAdmin ? `<button onclick="event.stopPropagation(); deleteSession(${e.id})" class="delete-btn" style="position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 18px; background: none; border: none; cursor: pointer;">&times;</button>` : '';
                 const tagsHtml = e.tags && e.tags.length > 0 ? `<div class="flex flex-wrap gap-1 mt-2">${e.tags.map(t => `<span class="text-xs px-2 py-0.5 rounded-full text-white" style="background:${t.color}">${t.name}</span>`).join('')}</div>` : '';
                 return `<div class="session-card rounded-xl p-4 transition-all cursor-pointer" style="position: relative;" onclick="window.location.href='/meetings/${e.id}/'" oncontextmenu="showTagMenu(event, ${e.id})">
+                    ${editBtn}
                     ${deleteBtn}
                     <div class="flex justify-between items-center mb-2" style="padding-right: ${isAdmin ? '24px' : '0'};">
                         <span class="inline-flex items-center gap-2">
@@ -649,9 +672,20 @@
 
         function addTagToMeeting(tagId) {
             if (!contextMeetingId) return;
-            fetch('/api/meetings/' + contextMeetingId + '/tags/' + tagId + '/', { method: 'POST' })
+            const meetingId = contextMeetingId;
+            fetch('/api/meetings/' + meetingId + '/tags/' + tagId + '/', { method: 'POST' })
                 .then(() => {
                     hideTagMenu();
+                    // Fetch updated meeting and refresh
+                    fetch('/api/meetings/' + meetingId + '/')
+                        .then(r => r.json())
+                        .then(data => {
+                            const meeting = allLoadedMeetings.find(m => m.id === meetingId);
+                            if (meeting) {
+                                meeting.tags = data.tags || [];
+                                renderSessions();
+                            }
+                        });
                 });
         }
 
@@ -721,6 +755,41 @@
             .then(() => {
                 loadTags();
                 renderTagList();
+            });
+        }
+
+        // Edit time modal
+        function openEditTimeModal(meetingId, startIso, endIso) {
+            document.getElementById('edit-time-meeting-id').value = meetingId;
+            document.getElementById('edit-time-start').value = startIso.slice(0, 16);
+            document.getElementById('edit-time-end').value = endIso.slice(0, 16);
+            document.getElementById('edit-time-modal').classList.remove('hidden');
+        }
+
+        function closeEditTimeModal() {
+            document.getElementById('edit-time-modal').classList.add('hidden');
+        }
+
+        function saveEditTime() {
+            const meetingId = document.getElementById('edit-time-meeting-id').value;
+            const data = {
+                start: document.getElementById('edit-time-start').value,
+                end: document.getElementById('edit-time-end').value
+            };
+            fetch('/api/meetings/' + meetingId + '/', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            }).then(() => {
+                closeEditTimeModal();
+                // Update local data and re-render
+                const meeting = allLoadedMeetings.find(m => m.id == meetingId);
+                if (meeting) {
+                    meeting.start = new Date(data.start);
+                    meeting.end = new Date(data.end);
+                    meeting.duration = (meeting.end - meeting.start) / 60000;
+                    renderSessions();
+                }
             });
         }
     </script>
