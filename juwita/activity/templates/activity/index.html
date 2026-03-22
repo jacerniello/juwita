@@ -522,9 +522,9 @@
                     document.getElementById('modal-time-display').textContent =
                         formatDate(data.start) + ' • ' + formatTime(data.start) + (endDate ? ' – ' + formatTime(data.end) : '');
 
-                    // Toggle admin/non-admin elements
-                    document.getElementById('modal-times').classList.toggle('hidden', !isAdmin);
-                    document.getElementById('modal-times-readonly').classList.toggle('hidden', isAdmin);
+                    // Always show readonly times (never editable)
+                    document.getElementById('modal-times').classList.add('hidden');
+                    document.getElementById('modal-times-readonly').classList.remove('hidden');
                     document.getElementById('modal-save-btn').classList.toggle('hidden', !isAdmin);
                     document.getElementById('photo-upload-btn').classList.toggle('hidden', !isAdmin);
 
@@ -576,8 +576,6 @@
         function saveSession() {
             const id = document.getElementById('modal-meeting-id').value;
             const data = {
-                start: document.getElementById('modal-start').value,
-                end: document.getElementById('modal-end').value,
                 notes: document.getElementById('modal-notes').value
             };
             fetch('/api/meetings/' + id + '/', {
