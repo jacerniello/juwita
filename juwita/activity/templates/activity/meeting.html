@@ -74,21 +74,6 @@
                 </div>
             </div>
 
-            <!-- Time editing (admin only) -->
-            <div id="time-edit" class="hidden mb-6">
-                <p class="text-sm opacity-60 mb-2">Edit Times</p>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs opacity-40 mb-1">Start</label>
-                        <input type="datetime-local" id="edit-start" class="w-full px-3 py-2 rounded-lg tag-input">
-                    </div>
-                    <div>
-                        <label class="block text-xs opacity-40 mb-1">End</label>
-                        <input type="datetime-local" id="edit-end" class="w-full px-3 py-2 rounded-lg tag-input">
-                    </div>
-                </div>
-            </div>
-
             <!-- Notes -->
             <div class="mb-6">
                 <p class="text-sm opacity-60 mb-2">Notes</p>
@@ -185,7 +170,6 @@
         }
 
         function updateAdminUI() {
-            document.getElementById('time-edit').classList.toggle('hidden', !isAdmin);
             document.getElementById('save-btn').classList.toggle('hidden', !isAdmin);
             document.getElementById('upload-btn').classList.toggle('hidden', !isAdmin);
             document.getElementById('add-tag-container').style.display = isAdmin ? 'flex' : 'none';
@@ -234,8 +218,6 @@
                         formatDate(data.start) + ' • ' + formatTime(data.start) + ' – ' + (data.end ? formatTime(data.end) : 'ongoing');
                     document.getElementById('meeting-duration').textContent = formatDuration(data.duration_minutes);
 
-                    document.getElementById('edit-start').value = data.start.slice(0, 16);
-                    document.getElementById('edit-end').value = data.end ? data.end.slice(0, 16) : '';
                     document.getElementById('notes').value = data.notes || '';
 
                     renderTags(data.tags || []);
@@ -411,8 +393,6 @@
         // Save
         function saveChanges() {
             const data = {
-                start: document.getElementById('edit-start').value,
-                end: document.getElementById('edit-end').value,
                 notes: document.getElementById('notes').value
             };
             fetch('/api/meetings/' + meetingId + '/', {
