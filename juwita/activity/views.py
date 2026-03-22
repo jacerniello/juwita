@@ -113,6 +113,7 @@ def meetings(request):
         "meetings": [
             {
                 "id": m.id,
+                "name": m.name,
                 "start": m.start_time.isoformat(),
                 "end": m.end_time.isoformat(),
                 "duration_minutes": m.duration.total_seconds() / 60,

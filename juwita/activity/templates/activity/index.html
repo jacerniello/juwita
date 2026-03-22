@@ -439,9 +439,11 @@
                             const existing = allLoadedMeetings.find(x => x.id === m.id);
                             if (existing) {
                                 existing.tags = m.tags || [];
+                                existing.name = m.name || '';
                             } else {
                                 allLoadedMeetings.push({
                                     id: m.id,
+                                    name: m.name || '',
                                     start: new Date(m.start),
                                     end: new Date(m.end),
                                     duration: m.duration_minutes,
@@ -465,7 +467,7 @@
                     <div class="flex justify-between items-center mb-2" style="padding-right: ${isAdmin ? '24px' : '0'};">
                         <span class="inline-flex items-center gap-2">
                             <span class="w-2 h-2 rounded-full bg-green-500"></span>
-                            <span class="font-medium text-green-600 session-text">Past Session</span>
+                            <span class="font-medium text-green-600 session-text">${e.name || 'Past Session'}</span>
                         </span>
                         <span class="text-sm font-medium opacity-60">${formatDuration(e.duration)}</span>
                     </div>
