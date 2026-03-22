@@ -142,6 +142,7 @@ def meeting_detail(request, meeting_id):
         tags = [{"id": t.id, "name": t.name, "color": t.color} for t in meeting.tags.all()]
         return JsonResponse({
             "id": meeting.id,
+            "name": meeting.name,
             "start": meeting.start_time.isoformat(),
             "end": meeting.end_time.isoformat() if meeting.end_time else None,
             "notes": meeting.notes,
@@ -154,6 +155,8 @@ def meeting_detail(request, meeting_id):
         if not request.user.is_authenticated:
             return JsonResponse({"error": "Authentication required"}, status=401)
         data = json.loads(request.body)
+        if "name" in data:
+            meeting.name = data["name"]
         if "notes" in data:
             meeting.notes = data["notes"]
         if "start" in data:

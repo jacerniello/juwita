@@ -13,6 +13,7 @@ class Log(models.Model):
 
 
 class Meeting(models.Model):
+    name = models.CharField(max_length=255, blank=True, default='')
     start_time = models.DateTimeField(auto_now_add=True)
     end_time = models.DateTimeField(null=True, blank=True)
     last_ping = models.DateTimeField(auto_now_add=True)

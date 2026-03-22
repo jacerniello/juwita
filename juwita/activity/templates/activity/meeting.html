@@ -38,7 +38,21 @@
 
             <!-- Time info -->
             <div class="mb-6">
-                <h1 class="text-2xl font-medium mb-2">Session Details</h1>
+                <div class="flex items-center gap-2 mb-2">
+                    <h1 id="session-name" class="text-2xl font-medium">Session Details</h1>
+                    <button id="edit-name-btn" onclick="startEditName()" class="hidden opacity-50 hover:opacity-100 transition-opacity">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                        </svg>
+                    </button>
+                </div>
+                <div id="edit-name-container" class="hidden mb-2">
+                    <div class="flex gap-2">
+                        <input type="text" id="name-input" class="flex-1 px-3 py-2 rounded-lg tag-input text-xl font-medium" placeholder="Session name">
+                        <button onclick="saveName()" class="px-4 py-2 rounded-lg bg-green-500 text-white text-sm">Save</button>
+                        <button onclick="cancelEditName()" class="px-4 py-2 rounded-lg upload-btn text-sm">Cancel</button>
+                    </div>
+                </div>
                 <p id="meeting-time" class="opacity-60"></p>
                 <p id="meeting-duration" class="text-lg font-medium mt-1"></p>
             </div>
@@ -140,6 +154,7 @@
         const meetingId = {{ meeting_id }};
         let isAdmin = false;
         let allTags = [];
+        let currentName = '';
 
         // Theme
         let isDark = localStorage.getItem('theme') !== 'light';
@@ -172,6 +187,7 @@
         function updateAdminUI() {
             document.getElementById('save-btn').classList.toggle('hidden', !isAdmin);
             document.getElementById('upload-btn').classList.toggle('hidden', !isAdmin);
+            document.getElementById('edit-name-btn').classList.toggle('hidden', !isAdmin);
             document.getElementById('add-tag-container').style.display = isAdmin ? 'flex' : 'none';
             document.getElementById('notes').readOnly = !isAdmin;
         }
@@ -214,6 +230,9 @@
                     document.getElementById('loading').classList.add('hidden');
                     document.getElementById('content').classList.remove('hidden');
 
+                    currentName = data.name || '';
+                    document.getElementById('session-name').textContent = currentName || 'Session Details';
+
                     document.getElementById('meeting-time').textContent =
                         formatDate(data.start) + ' • ' + formatTime(data.start) + ' – ' + (data.end ? formatTime(data.end) : 'ongoing');
                     document.getElementById('meeting-duration').textContent = formatDuration(data.duration_minutes);
@@ -223,6 +242,38 @@
                     renderTags(data.tags || []);
                     renderPhotos(data.photos || []);
                 });
+        }
+
+        // Session name editing
+        function startEditName() {
+            document.getElementById('session-name').classList.add('hidden');
+            document.getElementById('edit-name-btn').classList.add('hidden');
+            document.getElementById('edit-name-container').classList.remove('hidden');
+            document.getElementById('name-input').value = currentName;
+            document.getElementById('name-input').focus();
+        }
+
+        function cancelEditName() {
+            document.getElementById('session-name').classList.remove('hidden');
+            document.getElementById('edit-name-btn').classList.remove('hidden');
+            document.getElementById('edit-name-container').classList.add('hidden');
+        }
+
+        function saveName() {
+            const newName = document.getElementById('name-input').value.trim();
+            fetch('/api/meetings/' + meetingId + '/', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: newName })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    currentName = newName;
+                    document.getElementById('session-name').textContent = newName || 'Session Details';
+                    cancelEditName();
+                }
+            });
         }
 
         // Tags
