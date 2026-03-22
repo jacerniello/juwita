@@ -484,8 +484,9 @@
         function deleteSession(id) {
             fetch('/api/meetings/' + id + '/', { method: 'DELETE' })
                 .then(() => {
-                    lastMeetingsHash = null;
-                    loadMeetings();
+                    // Remove from local array and re-render
+                    allLoadedMeetings = allLoadedMeetings.filter(m => m.id !== id);
+                    renderSessions();
                 });
         }
 
