@@ -163,6 +163,7 @@
         .light .context-menu { background: #f5f5f5; border: 1px solid #d4d4d4; }
         .light .context-menu-item { color: #171717; }
         .light .context-menu-item:hover { background: #e5e5e5; }
+        .tag-chip:hover .tag-remove-btn { display: inline-block !important; }
 
         /* Dark mode */
         .dark { background: #0a0a0a; color: #f5f5f5; }
@@ -458,7 +459,7 @@
             const sessionsEl = document.getElementById('sessions');
             sessionsEl.innerHTML = allLoadedMeetings.map(e => {
                 const deleteBtn = isAdmin ? `<button onclick="event.stopPropagation(); deleteSession(${e.id})" class="delete-btn" style="position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 18px; background: none; border: none; cursor: pointer;">&times;</button>` : '';
-                const tagsHtml = e.tags && e.tags.length > 0 ? `<div class="flex flex-wrap gap-1 mt-2">${e.tags.map(t => `<span class="text-xs px-2 py-0.5 rounded-full text-white" style="background:${t.color}">${t.name}</span>`).join('')}</div>` : '';
+                const tagsHtml = e.tags && e.tags.length > 0 ? `<div class="flex flex-wrap gap-1 mt-2">${e.tags.map(t => `<span class="tag-chip text-xs px-2 py-0.5 rounded-full text-white inline-flex items-center gap-1" style="background:${t.color}">${t.name}${isAdmin ? `<button onclick="event.stopPropagation(); removeTagFromMeeting(${e.id}, ${t.id})" class="tag-remove-btn" style="display:none; margin-left:2px; font-size:10px;">&times;</button>` : ''}</span>`).join('')}</div>` : '';
                 return `<div class="session-card rounded-xl p-4 transition-all cursor-pointer" style="position: relative;" onclick="window.location.href='/meetings/${e.id}/'" oncontextmenu="showTagMenu(event, ${e.id})">
                     ${deleteBtn}
                     <div class="flex justify-between items-center mb-2" style="padding-right: ${isAdmin ? '24px' : '0'};">
@@ -663,6 +664,18 @@
                                 renderSessions();
                             }
                         });
+                });
+        }
+
+        function removeTagFromMeeting(meetingId, tagId) {
+            fetch('/api/meetings/' + meetingId + '/tags/' + tagId + '/', { method: 'DELETE' })
+                .then(() => {
+                    // Update local meeting tags and re-render
+                    const meeting = allLoadedMeetings.find(m => m.id === meetingId);
+                    if (meeting) {
+                        meeting.tags = meeting.tags.filter(t => t.id !== tagId);
+                        renderSessions();
+                    }
                 });
         }
 
